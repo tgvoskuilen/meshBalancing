@@ -42,7 +42,18 @@ namespace Foam
 }
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
+label Foam::dynamicRefineBalancedFvMesh::topParentID(label p)
+{
+    nextP = meshCutter().history().splitCells()[p].parent_;
+    if( nextP < 0 )
+    {
+        return p;
+    }
+    else
+    {
+        return topParent(nextP);
+    }
+}
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -66,7 +77,11 @@ Foam::dynamicRefineBalancedFvMesh::~dynamicRefineBalancedFvMesh()
 bool Foam::dynamicRefineBalancedFvMesh::update()
 {
     //Part 1 - Copied from dynamicRefineFvMesh::update
-
+    // If dynamicRefineFvMesh put this code in a separate "doUpdate" function
+    // and set update so it just called doUpdate(), then this code would not
+    // have to be repeated. It could also just call doUpdate().
+    
+    
 
     // Re-read dictionary. Choosen since usually -small so trivial amount
     // of time compared to actual refinement. Also very useful to be able
@@ -267,6 +282,8 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
     
     
     // LOAD BALANCING SECTION
+    // TODO: Read 'balancingInterval' 'enableBalancing' and 'maxImbalance'
+    //       from dictionary
     if ( time().timeIndex() > 0 && Pstream::parRun() && hasChanged )
     {
         //First determine current level of imbalance
@@ -286,6 +303,7 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
         {
             Info<< "Re-balancing problem" << endl;
             
+  //VERSION 1 - TO BE REPLACED
             //calc weights for distribution that doesn't break refinement
             scalar maxV = gMax(V());
             scalar dx = Foam::pow(maxV,1.0/3.0); //Assume dx=dy=dz
@@ -349,86 +367,6 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
             
             
             
-            
-            /*
-            
-            point topParentCenter(cellI)
-            {
-                label pTop = topParentID(history().parentIndex(cellI));
-            
-            }
-            
-            
-            label topParentID(label p)
-            {
-                nextP = history().splitCells()[p].parent_;
-                if( nextP < 0 )
-                {
-                    return p;
-                }
-                else
-                {
-                    return topParent(nextP);
-                }
-            }
-            
-            Map<label> coarseIDmap(nCells());
-            labelList uniqueIndex(nCells(),0);
-            
-            label localID = 0;
-
-            forAll(cells(), cellI)
-            {
-                if( cellLevel[cellI] > 0 )
-                {
-                    label p = history().parentIndex(cellI);
-                    uniqueIndex[cellI] = topParentID(p) + nCells();
-                }
-                else
-                {
-                    uniqueIndex[cellI] = cellI;
-                }
-                
-                if( coarseIDmap.insert(uniqueIndex[cellI], localID) )
-                {
-                    ++localID;
-                }
-            }
-            
-            
-            label nCoarse = localID;
-            
-            // Convert to local, sequential indexing
-            labelList localIndices(nCells(),0);
-            pointField coarsePoints(nCoarse,vector(GREAT,GREAT,GREAT));
-            scalarField coarseWeights(nCoarse,0.0);
-            
-            forAll(uniqueIndex, cellI)
-            {
-                localIndices[cellI] = coarseIDmap[uniqueIndex[cellI]];
-                label& li = localIndices[cellI];
-                
-                coarseWeights[li] += 1.0;
-                
-                if( cellLevel[cellI] == 0 )
-                {
-                    coarsePoints[li] = C()[cellI]
-                }
-                else if( coarsePoints[li].x() < GREAT )
-                {
-                    coarsePoints[li] = topParentCenter(cellI);
-                }
-            }
-            
-            Pout << "Proc has " << nCoarse << " blocks" << endl;
-            
-            
-            */
-            
-            
-            
-            
-            
             //localIndices = fineToCoarse
             // now make coarsePoints and coarseWeights
             pointField coarsePoints(nCoarse,vector::zero);
@@ -452,6 +390,55 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
                 ) + minCC; //Not sure if I need to add this back or not
                 coarseWeights[li] += 1.0;
             }
+            
+            
+            /*
+            
+   //VERSION 2 - not tested yet, much simpler though
+            
+            Map<label> coarseIDmap(nCells());
+            labelList uniqueIndex(nCells(),0);
+            
+            label nCoarse = 0;
+
+            forAll(cells(), cellI)
+            {
+                if( cellLevel[cellI] > 0 )
+                {
+                    uniqueIndex[cellI] = nCells() + topParentID
+                    (
+                        meshCutter().history().parentIndex(cellI)
+                    );
+                }
+                else
+                {
+                    uniqueIndex[cellI] = cellI;
+                }
+                
+                if( coarseIDmap.insert(uniqueIndex[cellI], nCoarse) )
+                {
+                    ++nCoarse;
+                }
+            }
+            
+            // Convert to local, sequential indexing and calculate coarse
+            // points and weights
+            labelList localIndices(nCells(),0);
+            pointField coarsePoints(nCoarse,vector::zero);
+            scalarField coarseWeights(nCoarse,0.0);
+            
+            forAll(uniqueIndex, cellI)
+            {
+                localIndices[cellI] = coarseIDmap[uniqueIndex[cellI]];
+                
+                label w = (1 << (3*cellLevel[cellI]));
+                coarseWeights[localIndices[cellI]] += 1.0;
+                coarsePoints[localIndices[cellI]] += C()[cellI]/w;
+            }
+            
+            Pout << "Proc has " << nCoarse << " blocks" << endl;
+            */
+            
             
             //Set up decomposer                
             autoPtr<decompositionMethod> decomposer

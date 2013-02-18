@@ -67,6 +67,7 @@ private:
         //- Disallow default bitwise assignment
         void operator=(const dynamicRefineBalancedFvMesh&);
 
+        label topParentID(label p);
 public:
 
     //- Runtime type information
