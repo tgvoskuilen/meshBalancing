@@ -42,16 +42,16 @@ namespace Foam
 }
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-label Foam::dynamicRefineBalancedFvMesh::topParentID(label p)
+Foam::label Foam::dynamicRefineBalancedFvMesh::topParentID(label p)
 {
-    nextP = meshCutter().history().splitCells()[p].parent_;
+    label nextP = meshCutter().history().splitCells()[p].parent_;
     if( nextP < 0 )
     {
         return p;
     }
     else
     {
-        return topParent(nextP);
+        return topParentID(nextP);
     }
 }
 
@@ -302,100 +302,8 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
         if( imbalanced )
         {
             Info<< "Re-balancing problem" << endl;
-            
-  //VERSION 1 - TO BE REPLACED
-            //calc weights for distribution that doesn't break refinement
-            scalar maxV = gMax(V());
-            scalar dx = Foam::pow(maxV,1.0/3.0); //Assume dx=dy=dz
-            scalar dy = dx; //TODO
-            scalar dz = dx; //TODO
-            
-            point minCC = bounds().min() + 0.5*vector(dx,dy,dz);
-            Tensor<scalar> T(0.0);
-            T.xx() = 1.0/dx;
-            T.yy() = 1.0/dy;
-            T.zz() = 1.0/dz;
-            
-            //Digitize mesh cell centroid coordinates to integer-scaled values
-            pointField cellRelCoord = (T & cellCentres()) - minCC;
-
-            // Round to nearest integer values
-            forAll(cellRelCoord, cellI)
-            {
-                point& c = cellRelCoord[cellI];
-
-                c.x() = std::floor(c.x() + 0.5);
-                c.y() = std::floor(c.y() + 0.5);
-                c.z() = std::floor(c.z() + 0.5);
-            }
-            
-            // Determine span of local mesh
-            //label nx = label( mesh.bounds().span().x()/dx + 0.5 );
-            label ny = label( bounds().span().y()/dy + 0.5 );
-            label nz = label( bounds().span().z()/dz + 0.5 );
-
-            //Assign indices to cells based on cellRelCoord
-            Map<label> coarseIDmap(nCells());
-            labelList globalIndices(nCells(),0);
-            label localID = 0;
-            
-            forAll(globalIndices, cellI)
-            {
-                point& c = cellRelCoord[cellI];
-                
-                label i = label(c.x()+0.5);
-                label j = label(c.y()+0.5);
-                label k = label(c.z()+0.5);
-                
-                globalIndices[cellI] = j + ny*k + ny*nz*i;
-                if( coarseIDmap.insert(globalIndices[cellI], localID) )
-                {
-                    ++localID;
-                }
-            }
-            
-            label nCoarse = localID;
-            
-            // Convert to local, sequential indexing
-            labelList localIndices(nCells(),0);
-            forAll(globalIndices, cellI)
-            {
-                localIndices[cellI] = coarseIDmap[globalIndices[cellI]];
-            }
-            
-            Pout << "Proc has " << nCoarse << " blocks" << endl;
-            
-            
-            
-            //localIndices = fineToCoarse
-            // now make coarsePoints and coarseWeights
-            pointField coarsePoints(nCoarse,vector::zero);
-            scalarField coarseWeights(nCoarse,0.0);
-            
-            forAll(localIndices, cellI)
-            {
-                point& c = cellRelCoord[cellI];
-                
-                label i = label(c.x()+0.5);
-                label j = label(c.y()+0.5);
-                label k = label(c.z()+0.5);
-                
-                label& li = localIndices[cellI];
-                
-                coarsePoints[li] = vector
-                (
-                    (i+0.5)*dx,
-                    (j+0.5)*dy,
-                    (k+0.5)*dz
-                ) + minCC; //Not sure if I need to add this back or not
-                coarseWeights[li] += 1.0;
-            }
-            
-            
-            /*
-            
-   //VERSION 2 - not tested yet, much simpler though
-            
+                        
+            const labelIOList& cellLevel = meshCutter().cellLevel();
             Map<label> coarseIDmap(nCells());
             labelList uniqueIndex(nCells(),0);
             
@@ -437,7 +345,7 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
             }
             
             Pout << "Proc has " << nCoarse << " blocks" << endl;
-            */
+            
             
             
             //Set up decomposer                
