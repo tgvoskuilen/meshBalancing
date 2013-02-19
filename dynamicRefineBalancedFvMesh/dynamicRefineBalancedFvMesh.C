@@ -112,13 +112,16 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
         
         Info<< "Maximum imbalance = " << 100*maxImbalance << " %" << endl;
         
-        //If imbalanced, construct grouping fields and re-balance
+        //If imbalanced, construct weighted coarse graph (level 0) with node
+        // weights equal to their number of subcells. This partitioning works
+        // as long as the number of level 0 cells is several times greater than
+        // the number of processors.
         if( maxImbalance > allowableImbalance )
         {
-            Info<< "Re-balancing problem" << endl;
+            Info<< "Re-balancing dynamically refined mesh" << endl;
                         
             const labelIOList& cellLevel = meshCutter().cellLevel();
-            Map<label> coarseIDmap(nCells());
+            Map<label> coarseIDmap();
             labelList uniqueIndex(nCells(),0);
             
             label nCoarse = 0;
@@ -143,22 +146,28 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
                 }
             }
             
-            // Convert to local, sequential indexing and calculate coarse
+            // Convert to local sequential indexing and calculate coarse
             // points and weights
-            labelList localIndices(nCells(),0);
+            labelList localIndex(nCells(),0);
             pointField coarsePoints(nCoarse,vector::zero);
             scalarField coarseWeights(nCoarse,0.0);
             
             forAll(uniqueIndex, cellI)
             {
-                localIndices[cellI] = coarseIDmap[uniqueIndex[cellI]];
+                localIndex[cellI] = coarseIDmap[uniqueIndex[cellI]];
                 
+                // If 2D refinement (quadtree) is ever implemented, this '3'
+                // should be set in general as the number of refinement
+                // dimensions.
                 label w = (1 << (3*cellLevel[cellI]));
-                coarseWeights[localIndices[cellI]] += 1.0;
-                coarsePoints[localIndices[cellI]] += C()[cellI]/w;
+                
+                coarseWeights[localIndex[cellI]] += 1.0;
+                coarsePoints[localIndex[cellI]] += C()[cellI]/w;
             }
             
-            //Set up decomposer                
+            //Set up decomposer - a separate dictionary is used here so
+            // you can use a simple partitioning for decomposePar and
+            // ptscotch for the rebalancing (or any chosen algorithms)
             autoPtr<decompositionMethod> decomposer
             (
                 decompositionMethod::New
@@ -180,7 +189,7 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
             labelList finalDecomp = decomposer().decompose
             (
                 *this, 
-                localIndices,
+                localIndex,
                 coarsePoints,
                 coarseWeights
             );
