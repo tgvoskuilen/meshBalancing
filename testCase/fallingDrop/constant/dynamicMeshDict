@@ -20,7 +20,7 @@ dynamicFvMesh   dynamicRefineBalancedFvMesh;
 
 dynamicRefineFvMeshCoeffs
 {
-    enableBalancing True;
+    enableBalancing true;
     allowableImbalance 0.1;
     
     // How often to refine
