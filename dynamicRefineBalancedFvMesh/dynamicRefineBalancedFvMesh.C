@@ -76,215 +76,13 @@ Foam::dynamicRefineBalancedFvMesh::~dynamicRefineBalancedFvMesh()
 
 bool Foam::dynamicRefineBalancedFvMesh::update()
 {
-    //Part 1 - Copied from dynamicRefineFvMesh::update
-    // If dynamicRefineFvMesh put this code in a separate "doUpdate" function
-    // and set update so it just called doUpdate(), then this code would not
-    // have to be repeated. It could also just call doUpdate().
+    //Part 1 - Call normal update from dynamicRefineFvMesh
+    bool hasChanged = dynamicRefineFvMesh::update();
     
-    
-
-    // Re-read dictionary. Choosen since usually -small so trivial amount
-    // of time compared to actual refinement. Also very useful to be able
-    // to modify on-the-fly.
-    dictionary refineDict
-    (
-        IOdictionary
-        (
-            IOobject
-            (
-                "dynamicMeshDict",
-                time().constant(),
-                *this,
-                IOobject::MUST_READ_IF_MODIFIED,
-                IOobject::NO_WRITE,
-                false
-            )
-        ).subDict("dynamicRefineFvMeshCoeffs")
-    );
-
-    label refineInterval = readLabel(refineDict.lookup("refineInterval"));
-
-    bool hasChanged = false;
-
-    if (refineInterval == 0)
-    {
-        changing(hasChanged);
-
-        return false;
-    }
-    else if (refineInterval < 0)
-    {
-        FatalErrorIn("dynamicRefineFvMesh::update()")
-            << "Illegal refineInterval " << refineInterval << nl
-            << "The refineInterval setting in the dynamicMeshDict should"
-            << " be >= 1." << nl
-            << exit(FatalError);
-    }
-
-
-
-
-    // Note: cannot refine at time 0 since no V0 present since mesh not
-    //       moved yet.
-
-    if (time().timeIndex() > 0 && time().timeIndex() % refineInterval == 0)
-    {
-        label maxCells = readLabel(refineDict.lookup("maxCells"));
-
-        if (maxCells <= 0)
-        {
-            FatalErrorIn("dynamicRefineFvMesh::update()")
-                << "Illegal maximum number of cells " << maxCells << nl
-                << "The maxCells setting in the dynamicMeshDict should"
-                << " be > 0." << nl
-                << exit(FatalError);
-        }
-
-        label maxRefinement = readLabel(refineDict.lookup("maxRefinement"));
-
-        if (maxRefinement <= 0)
-        {
-            FatalErrorIn("dynamicRefineFvMesh::update()")
-                << "Illegal maximum refinement level " << maxRefinement << nl
-                << "The maxCells setting in the dynamicMeshDict should"
-                << " be > 0." << nl
-                << exit(FatalError);
-        }
-
-        const word fieldName(refineDict.lookup("field"));
-
-        const volScalarField& vFld = lookupObject<volScalarField>(fieldName);
-
-        const scalar lowerRefineLevel =
-            readScalar(refineDict.lookup("lowerRefineLevel"));
-        const scalar upperRefineLevel =
-            readScalar(refineDict.lookup("upperRefineLevel"));
-        const scalar unrefineLevel =
-            readScalar(refineDict.lookup("unrefineLevel"));
-        const label nBufferLayers =
-            readLabel(refineDict.lookup("nBufferLayers"));
-
-        // Cells marked for refinement or otherwise protected from unrefinement.
-        PackedBoolList refineCell(nCells());
-
-        if (globalData().nTotalCells() < maxCells)
-        {
-            // Determine candidates for refinement (looking at field only)
-            selectRefineCandidates
-            (
-                lowerRefineLevel,
-                upperRefineLevel,
-                vFld,
-                refineCell
-            );
-
-            // Select subset of candidates. Take into account max allowable
-            // cells, refinement level, protected cells.
-            labelList cellsToRefine
-            (
-                selectRefineCells
-                (
-                    maxCells,
-                    maxRefinement,
-                    refineCell
-                )
-            );
-
-            label nCellsToRefine = returnReduce
-            (
-                cellsToRefine.size(), sumOp<label>()
-            );
-
-            if (nCellsToRefine > 0)
-            {
-                // Refine/update mesh and map fields
-                autoPtr<mapPolyMesh> map = refine(cellsToRefine);
-
-                // Update refineCell. Note that some of the marked ones have
-                // not been refined due to constraints.
-                {
-                    const labelList& cellMap = map().cellMap();
-                    const labelList& reverseCellMap = map().reverseCellMap();
-
-                    PackedBoolList newRefineCell(cellMap.size());
-
-                    forAll(cellMap, cellI)
-                    {
-                        label oldCellI = cellMap[cellI];
-
-                        if (oldCellI < 0)
-                        {
-                            newRefineCell.set(cellI, 1);
-                        }
-                        else if (reverseCellMap[oldCellI] != cellI)
-                        {
-                            newRefineCell.set(cellI, 1);
-                        }
-                        else
-                        {
-                            newRefineCell.set(cellI, refineCell.get(oldCellI));
-                        }
-                    }
-                    refineCell.transfer(newRefineCell);
-                }
-
-                // Extend with a buffer layer to prevent neighbouring points
-                // being unrefined.
-                for (label i = 0; i < nBufferLayers; i++)
-                {
-                    extendMarkedCells(refineCell);
-                }
-
-                hasChanged = true;
-            }
-        }
-
-
-        {
-            // Select unrefineable points that are not marked in refineCell
-            labelList pointsToUnrefine
-            (
-                selectUnrefinePoints
-                (
-                    unrefineLevel,
-                    refineCell,
-                    minCellField(vFld)
-                )
-            );
-
-            label nSplitPoints = returnReduce
-            (
-                pointsToUnrefine.size(),
-                sumOp<label>()
-            );
-
-            if (nSplitPoints > 0)
-            {
-                // Refine/update mesh
-                unrefine(pointsToUnrefine);
-
-                hasChanged = true;
-            }
-        }
-
-
-        if ((nRefinementIterations_ % 10) == 0)
-        {
-            // Compact refinement history occassionally (how often?).
-            // Unrefinement causes holes in the refinementHistory.
-            const_cast<refinementHistory&>(meshCutter().history()).compact();
-        }
-        nRefinementIterations_++;
-              
-    }
-
-    changing(hasChanged);
-    
-    
-    // LOAD BALANCING SECTION
-    // TODO: Read 'balancingInterval' 'enableBalancing' and 'maxImbalance'
-    //       from dictionary
-    if ( time().timeIndex() > 0 && Pstream::parRun() && hasChanged )
+    // Part 2 - Load Balancing
+    bool enableBalancing = true;     //TODO: Read from dictionary
+    scalar allowableImbalance = 0.1; //TODO: Read from dictionary
+    if ( Pstream::parRun() && hasChanged && enableBalancing )
     {
         //First determine current level of imbalance
         label nGlobalCells = globalData().nTotalCells();
@@ -294,12 +92,10 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
         Foam::reduce(localImbalance, maxOp<scalar>());
         scalar maxImbalance = localImbalance/nGlobalCells;
         
-        bool imbalanced = (maxImbalance > 0.1);
-        
         Info<< "Maximum imbalance = " << 100*maxImbalance << " %" << endl;
         
-        //If imbalanced, construct grouping fields
-        if( imbalanced )
+        //If imbalanced, construct grouping fields and re-balance
+        if( maxImbalance > allowableImbalance )
         {
             Info<< "Re-balancing problem" << endl;
                         
@@ -344,10 +140,6 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
                 coarsePoints[localIndices[cellI]] += C()[cellI]/w;
             }
             
-            Pout << "Proc has " << nCoarse << " blocks" << endl;
-            
-            
-            
             //Set up decomposer                
             autoPtr<decompositionMethod> decomposer
             (
@@ -367,7 +159,6 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
                 )
             );
             
-            
             labelList finalDecomp = decomposer().decompose
             (
                 *this, 
@@ -384,7 +175,7 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
                   distributor.distribute(finalDecomp);
                   
             meshCutter_.distribute(map);
-        }   
+        }
     }
 
     return hasChanged;
