@@ -80,13 +80,31 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
     bool hasChanged = dynamicRefineFvMesh::update();
     
     // Part 2 - Load Balancing
-    bool enableBalancing = true;     //TODO: Read from dictionary
-    scalar allowableImbalance = 0.1; //TODO: Read from dictionary
+    dictionary refineDict
+    (
+        IOdictionary
+        (
+            IOobject
+            (
+                "dynamicMeshDict",
+                time().constant(),
+                *this,
+                IOobject::MUST_READ_IF_MODIFIED,
+                IOobject::NO_WRITE,
+                false
+            )
+        ).subDict("dynamicRefineFvMeshCoeffs")
+    );
+    
+    Switch enableBalancing = refineDict.lookup("enableBalancing");
+    
     if ( Pstream::parRun() && hasChanged && enableBalancing )
     {
+        const scalar allowableImbalance = 
+            readScalar(refineDict.lookup("allowableImbalance"));
+            
         //First determine current level of imbalance
         label nGlobalCells = globalData().nTotalCells();
-        
         scalar idealNCells = scalar(nGlobalCells)/scalar(Pstream::nProcs());
         scalar localImbalance = mag(scalar(nCells()) - idealNCells);
         Foam::reduce(localImbalance, maxOp<scalar>());
