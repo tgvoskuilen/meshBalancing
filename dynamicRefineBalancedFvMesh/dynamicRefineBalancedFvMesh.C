@@ -121,7 +121,7 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
             Info<< "Re-balancing dynamically refined mesh" << endl;
                         
             const labelIOList& cellLevel = meshCutter().cellLevel();
-            Map<label> coarseIDmap();
+            Map<label> coarseIDmap(100);
             labelList uniqueIndex(nCells(),0);
             
             label nCoarse = 0;

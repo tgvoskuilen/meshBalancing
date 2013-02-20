@@ -8,7 +8,7 @@ cp -r 0.org 0
 runApplication blockMesh
 runApplication setFields
 runApplication decomposePar
-runParallel `getApplication` 2
+runParallel `getApplication` 4
 
 
 # ----------------------------------------------------------------- end-of-file
