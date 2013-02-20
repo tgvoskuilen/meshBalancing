@@ -48,3 +48,6 @@ to the update() function.
                 }
             }
         }
+        
+  4. [CRASH] Set commsType to 'blocking' in etc/controlDict to fix crashes 
+     occurring in MULES solution.
