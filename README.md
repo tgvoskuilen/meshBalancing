@@ -49,5 +49,6 @@ to the update() function.
             }
         }
         
-  4. [CRASH] Set commsType to 'blocking' in etc/controlDict to fix crashes 
-     occurring in MULES solution.
+  4. [CRASH] Two methods: Either set commsType to 'blocking' in etc/controlDict to fix crashes 
+     occurring in MULES solution, or add a call to any function that contains a basic blocking
+     routine to the end of the MULES::explicitSolve (for example, min() calls Foam::reduce())
