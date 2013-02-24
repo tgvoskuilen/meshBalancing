@@ -52,9 +52,10 @@ to the update() function.
   4. [CRASH] Mapping of patches had an error for mixed patches. In
      `fvMeshAdder::MapVolField` there is a section where imported patch values
      are mapped to existing patches. This correctly maps the patch value, but
-     omits mapping of the refValue in mixed patches. The refValue is then left
-     set to a section of unallocated memory if all the original faces of that
-     patch got moved to another processor. Remove the manual loop
+     omits mapping of the refValue, refGradient, and other stored fields in 
+     mixed patches. The refValue is then left
+     set to a section of allocated but unset memory if all the original faces 
+     of that patch get moved to another processor. Remove the manual loop
      near the end of the function and use the rmap function with a reversed map
      by replacing
      
