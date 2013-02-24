@@ -16,6 +16,8 @@
 *.dep
 lnInclude/
 linux64GccDPOpt/
+linux64GccDPDebug/
+boundary
 
 # Text backup files
 *~

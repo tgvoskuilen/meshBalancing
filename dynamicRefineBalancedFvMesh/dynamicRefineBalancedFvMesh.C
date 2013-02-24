@@ -33,6 +33,8 @@ License
 #include "syncTools.H"
 #include "pointFields.H"
 
+#include "OFstream.H"
+
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
@@ -193,7 +195,7 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
                 coarsePoints,
                 coarseWeights
             );
-        
+
             scalar tolDim = globalMeshData::matchTol_ * bounds().mag();
             
             fvMeshDistribute distributor(*this, tolDim);

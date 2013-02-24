@@ -8,6 +8,11 @@ cp -r 0.org 0
 runApplication blockMesh
 runApplication setFields
 runApplication decomposePar
+touch test.foam
+touch processor0/test.foam
+touch processor1/test.foam
+touch processor2/test.foam
+touch processor3/test.foam
 runParallel `getApplication` 4
 
 

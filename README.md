@@ -21,8 +21,8 @@ to the update() function.
   3. [CRASH] Add the following to `nearWallDist::correct()` inside the
      `mesh_.changing()` condition but before the patch sizes are set. If the
      total number of patches on a processor increases, there is a crash unless
-     we increase the size of nearWallDist first
-     
+     we increase the size of nearWallDist first.
+          
         // If the number of patches on this processor increased, we need to
         // increase the number of patches in nearWallDist to match
         if( mesh_.boundary().size() != size() )
@@ -49,6 +49,38 @@ to the update() function.
             }
         }
         
-  4. [CRASH] Two methods: Either set commsType to 'blocking' in etc/controlDict to fix crashes 
-     occurring in MULES solution, or add a call to any function that contains a basic blocking
-     routine to the end of the MULES::explicitSolve (for example, min() calls Foam::reduce())
+  4. [CRASH] Mapping of patches had an error for mixed patches. In
+     `fvMeshAdder::MapVolField` there is a section where imported patch values
+     are mapped to existing patches. This correctly maps the patch value, but
+     omits mapping of the refValue in mixed patches. The refValue is then left
+     set to a section of unallocated memory if all the original faces of that
+     patch got moved to another processor. Remove the manual loop
+     near the end of the function and use the rmap function with a reversed map
+     by replacing
+     
+        forAll(newFld, i)
+        {
+            label oldFaceI = newToAdded[i];
+        
+            if (oldFaceI >= 0 && oldFaceI < addedFld.size())
+            {
+                newFld[i] = addedFld[oldFaceI];
+            } 
+        }
+        
+    with
+    
+        labelList addedToNew(addedFld.size(),-1);
+        forAll(newFld, i)
+        {
+            label oldFaceI = newToAdded[i];
+
+            if (oldFaceI >= 0 && oldFaceI < addedFld.size())
+            {
+                addedToNew[oldFaceI] = i;
+            } 
+        }
+        
+        newFld.rmap(addedFld, addedToNew);
+     
+     
