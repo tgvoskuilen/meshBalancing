@@ -33,8 +33,6 @@ License
 #include "syncTools.H"
 #include "pointFields.H"
 
-#include "OFstream.H"
-
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
