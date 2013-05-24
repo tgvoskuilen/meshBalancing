@@ -7,7 +7,8 @@ to the update() function.
 
 ## OpenFOAM Source Changes
 
-  1. [CRASH] Add guard in refinementHistory::distribute at line 957 to catch
+  1. [CRASH] Add guard in src/dynamicMesh/polyTopoChange/refinementHistory.C in
+     refinementHistory::distribute at line 927 to catch
      when fully un-refined cells are transferred
      
         if( newVisibleCells[i] >= 0 )
@@ -16,9 +17,10 @@ to the update() function.
         }
         
   2. [ANNOYANCE] Add `if (debug)` guard around print statements in
-     `refinementHistory::countProc`
+     `refinementHistory::countProc` in the same file as edit #1
      
-  3. [CRASH] Add the following to `nearWallDist::correct()` inside the
+  3. [CRASH] Add the following to src/finiteVolume/fvMesh/nearWallDist.C
+     at `nearWallDist::correct()` inside the
      `mesh_.changing()` condition but before the patch sizes are set. If the
      total number of patches on a processor increases, there is a crash unless
      we increase the size of nearWallDist first.
@@ -50,7 +52,8 @@ to the update() function.
         }
         
   4. [CRASH] Mapping of patches had an error for mixed patches. In
-     `fvMeshAdder::MapVolField` there is a section where imported patch values
+     src/dynamicMesh/fvMeshAdder/fvMeshAdderTemplates.C in function
+     `fvMeshAdder::MapVolField` around line 263 there is a section where imported patch values
      are mapped to existing patches. This correctly maps the patch value, but
      omits mapping of the refValue, refGradient, and other stored fields in 
      mixed patches. The refValue is then left
