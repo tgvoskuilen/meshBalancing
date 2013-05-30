@@ -30,9 +30,6 @@ Description
     
     Must be run on maximum number of source and destination processors.
     Balances mesh and writes new mesh to new time directory.
-    
-    To overwrite, run with:
-        mpirun -np 16 redistributeParPlus -parallel
 
 
 \*---------------------------------------------------------------------------*/
@@ -1144,6 +1141,35 @@ int main(int argc, char *argv[])
     //// Distribute any non-registered data accordingly
     //map().distributeFaceData(faceCc);
 
+    // Call correctBoundaryConditions to update values on new parallel patches
+    // on vol fields. Surf fields shouldn't need an update?
+    forAll(volScalarFields, i)
+    {
+        volScalarFields[i].correctBoundaryConditions();
+    }
+    
+    forAll(volVectorFields, i)
+    {
+        volVectorFields[i].correctBoundaryConditions();
+    }
+    
+    forAll(volSphereTensorFields, i)
+    {
+        volSphereTensorFields[i].correctBoundaryConditions();
+    }
+    
+    forAll(volSymmTensorFields, i)
+    {
+        volSymmTensorFields[i].correctBoundaryConditions();
+    }
+    
+    forAll(volTensorFields, i)
+    {
+        volTensorFields[i].correctBoundaryConditions();
+    }
+        
+        
+    
 
     // Print a bit
     // Print some statistics
