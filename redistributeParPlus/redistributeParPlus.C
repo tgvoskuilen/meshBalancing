@@ -44,6 +44,9 @@ Description
 #include "globalIndex.H"
 //#include "dynamicFvMesh.H"
 #include "refinementHistory.H"
+#include "hexRef8.H"
+#include "labelIOList.H"
+#include "OFstream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -861,7 +864,7 @@ int main(int argc, char *argv[])
 
     labelList finalDecomp;
     
-    refinementHistory history
+    /*refinementHistory history
     (
         IOobject
         (
@@ -873,12 +876,18 @@ int main(int argc, char *argv[])
              IOobject::AUTO_WRITE 
         ),
         mesh.nCells()
-    );
+    );*/
     
+    Info<<"Loading meshCutter"<<endl;
+    hexRef8 meshCutter(mesh);
+    refinementHistory history = meshCutter.history();
+    
+    labelList cellLevel = meshCutter.cellLevel();
+
     // Assume at least one cell in the mesh is unrefined
-    scalar maxV = gMax(mesh.V());
+    //scalar maxV = gMax(mesh.V());
     
-    labelList cellLevel(mesh.nCells(),0);
+    //labelList cellLevel(mesh.nCells(),0);
     Map<label> coarseIDmap(100);
     labelList uniqueIndex(mesh.nCells(),0);
     
@@ -887,7 +896,7 @@ int main(int argc, char *argv[])
     forAll(mesh.cells(), cellI)
     {
         //Dimensionally dependant - need to change for 2D quadtree meshes
-        cellLevel[cellI] = log2Func(label(maxV / mesh.V()[cellI] + 0.5))/3;
+        //cellLevel[cellI] = log2Func(label(maxV / mesh.V()[cellI] + 0.5))/3;
         
         if( cellLevel[cellI] > 0 )
         {
@@ -913,6 +922,8 @@ int main(int argc, char *argv[])
     labelList localIndex(mesh.nCells(),0);
     pointField coarsePoints(nCoarse,vector::zero);
     scalarField coarseWeights(nCoarse,0.0);
+    
+    Pout<<"nCells = " << mesh.nCells() << endl;
     
     forAll(uniqueIndex, cellI)
     {
@@ -1136,7 +1147,13 @@ int main(int argc, char *argv[])
     // Do actual sending/receiving of mesh
     autoPtr<mapDistributePolyMesh> map = distributor.distribute(finalDecomp);
     
-    history.distribute( map() );
+    //Info<<"Distributing history"<<endl;
+    //history.distribute( map() );
+    
+    Info<<"Distributing meshCutter" << endl;
+    meshCutter.distribute( map() ); // <- crashes here
+
+    
     
     //// Distribute any non-registered data accordingly
     //map().distributeFaceData(faceCc);
@@ -1168,8 +1185,72 @@ int main(int argc, char *argv[])
         volTensorFields[i].correctBoundaryConditions();
     }
         
-        
+    /*
+    Pout<<"nCells after dist = " << mesh.nCells() << endl;
+    const volScalarField& cellLevelvsf = mesh.lookupObject<volScalarField>("cellLevel");
+    Pout << "max cell level = " << max(cellLevelvsf) << endl;
     
+    // Copy the volScalarField cellLevel into a labelIOList in polyMesh
+    labelIOList cellLevelNew
+    (
+        IOobject
+        (
+            "cellLevelNew",
+            mesh.facesInstance(),
+            polyMesh::meshSubDir,
+            mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        labelList(mesh.nCells(), 0)
+    );
+    
+    forAll(cellLevelNew, cellI)
+    {
+        cellLevelNew[cellI] = cellLevelvsf[cellI];
+    }
+    
+    //fileName cellLevelPath = cellLevelNew.filePath();
+    */
+
+    //Rebuild pointLevel from cellLevel
+    /*labelIOList pointLevelNew
+    (
+        IOobject
+        (
+            "pointLevel",
+            mesh.facesInstance(),
+            polyMesh::meshSubDir,
+            mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        labelList(mesh.nPoints(), -1)
+    );
+    
+    label maxLevel = max(cellLevelNew);
+    const labelListList& cellPoints = mesh.cellPoints();
+    
+    for( label L = 0; L <= maxLevel; L++ )
+    {
+        forAll(cellLevelNew, cellI)
+        {
+            if( cellLevelNew[cellI] == L )
+            {
+                const labelList& pts = cellPoints[cellI];
+                
+                forAll(pts, p)
+                {
+                    if( pointLevelNew[pts[p]] < 0 )
+                    {
+                        pointLevelNew[pts[p]] = L;
+                    }
+                }
+            }
+        }   
+    }*/
+    
+    //Info<< "Min pointLevel = " << min(pointLevelNew) << endl;
 
     // Print a bit
     // Print some statistics
@@ -1187,7 +1268,6 @@ int main(int argc, char *argv[])
     }
     Info<< "Writing redistributed mesh to " << runTime.timeName() << nl << endl;
     mesh.write();
-
 
     // Debugging: test mapped cellcentre field.
     //compareFields(tolDim, mesh.C(), mapCc);

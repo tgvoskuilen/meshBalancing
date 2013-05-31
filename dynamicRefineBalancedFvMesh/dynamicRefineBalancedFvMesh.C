@@ -108,9 +108,13 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
         scalar idealNCells = scalar(nGlobalCells)/scalar(Pstream::nProcs());
         scalar localImbalance = mag(scalar(nCells()) - idealNCells);
         Foam::reduce(localImbalance, maxOp<scalar>());
-        scalar maxImbalance = localImbalance/nGlobalCells;
+        scalar maxImbalance = localImbalance/idealNCells;
         
-        Info<< "Maximum imbalance = " << 100*maxImbalance << " %" << endl;
+        //Info<<"Balancing Stats:"<<endl;
+        //Info<<"  Global cells: " << nGlobalCells<<endl;
+        //Info<<"  Ideal # of cells: " << idealNCells << endl;
+        //Pout<<"  Local cells and imbalance " << nCells() << ", " << localImbalance << endl;
+        Info<<"Maximum imbalance = " << 100*maxImbalance << " %" << endl;
         
         //If imbalanced, construct weighted coarse graph (level 0) with node
         // weights equal to their number of subcells. This partitioning works
