@@ -5,6 +5,13 @@ This contains a single library, dynamicRefineBalancedFvMesh which is
 based on dynamicRefineFvMesh but adds mesh balancing for parallel cases
 to the update() function.
 
+Note: The redistributeParPlus function does NOT work. For some reason it does not
+redistribute the cellLevel and pointLevel fields (hexRef8.distribute crashes) so
+it is only redistributing the refinement history.
+
+A workaround may be to reconstruct the cellLevel and pointLevel manually from the
+distributed refinement history.
+
 ## OpenFOAM Source Changes (for 2.1.x)
 
   1. [CRASH] Add guard in src/dynamicMesh/polyTopoChange/refinementHistory.C in
