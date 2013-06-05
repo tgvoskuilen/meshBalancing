@@ -88,6 +88,9 @@ public:
 
         //- Update the mesh for both mesh motion and topology change
         virtual bool update();
+        
+        //- Template to update all volField boundaries
+        template<class Type> void correctBoundaries();
 
 };
 
@@ -97,6 +100,10 @@ public:
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "dynamicRefineBalancedFvMeshTemplates.C"
+#endif
 
 #endif
 

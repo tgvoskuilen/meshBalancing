@@ -98,29 +98,26 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
     
     Switch enableBalancing = refineDict.lookup("enableBalancing");
     
-    if ( Pstream::parRun() && hasChanged && enableBalancing )
+    if ( Pstream::parRun() && hasChanged )
     {
         const scalar allowableImbalance = 
             readScalar(refineDict.lookup("allowableImbalance"));
             
-        //First determine current level of imbalance
+        //First determine current level of imbalance - do this for all
+        // parallel runs with a changing mesh, even if balancing is disabled
         label nGlobalCells = globalData().nTotalCells();
         scalar idealNCells = scalar(nGlobalCells)/scalar(Pstream::nProcs());
         scalar localImbalance = mag(scalar(nCells()) - idealNCells);
         Foam::reduce(localImbalance, maxOp<scalar>());
         scalar maxImbalance = localImbalance/idealNCells;
         
-        //Info<<"Balancing Stats:"<<endl;
-        //Info<<"  Global cells: " << nGlobalCells<<endl;
-        //Info<<"  Ideal # of cells: " << idealNCells << endl;
-        //Pout<<"  Local cells and imbalance " << nCells() << ", " << localImbalance << endl;
         Info<<"Maximum imbalance = " << 100*maxImbalance << " %" << endl;
         
         //If imbalanced, construct weighted coarse graph (level 0) with node
         // weights equal to their number of subcells. This partitioning works
         // as long as the number of level 0 cells is several times greater than
         // the number of processors.
-        if( maxImbalance > allowableImbalance )
+        if( maxImbalance > allowableImbalance && enableBalancing)
         {
             Info<< "Re-balancing dynamically refined mesh" << endl;
                         
@@ -206,6 +203,13 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
                   distributor.distribute(finalDecomp);
                   
             meshCutter_.distribute(map);
+            
+            //Correct values on all cyclic patches
+            correctBoundaries<scalar>();
+            correctBoundaries<vector>();
+            correctBoundaries<sphericalTensor>();
+            correctBoundaries<symmTensor>();
+            correctBoundaries<tensor>();
         }
     }
 
