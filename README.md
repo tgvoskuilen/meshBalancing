@@ -107,4 +107,5 @@ distributed refinement history.
    * In basicChemistryModelI.H change both instances of `return deltaTChem_;` to
      `return deltaTChem_.dimensionedInternalField();`
       
-      Recompile the thermophysicalModels source directory and the mapping works.
+      Recompile the entire src directory since a lot of things link to this, and it
+      should work.
