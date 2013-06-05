@@ -99,11 +99,12 @@ distributed refinement history.
       An easy workaround is to change it to a GeometricField by making the following
       edits:
       
-      a. In `basicChemistryModel.H` change `DimensionedField<scalar, volMesh> deltaTChem_;`
-         to `GeometricField<scalar, fvPatchField, volMesh> deltaTChem_;` and add
-         `#include GeometricField.H` and `#include fvPatchField.H` to the list of included
-         headers
-      b. In `basicChemistryModelI.H` change both instances of `return deltaTChem_;` to
-         `return deltaTChem_.dimensionedInternalField();`
+   * In `basicChemistryModel.H` change `DimensionedField<scalar, volMesh> deltaTChem_;`
+      to `GeometricField<scalar, fvPatchField, volMesh> deltaTChem_;` and add
+      `#include GeometricField.H` and `#include fvPatchField.H` to the list of included
+      headers
+
+   * In `basicChemistryModelI.H` change both instances of `return deltaTChem_;` to
+     `return deltaTChem_.dimensionedInternalField();`
       
       Recompile the thermophysicalModels source directory and the mapping works.
