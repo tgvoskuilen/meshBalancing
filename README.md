@@ -94,4 +94,18 @@ distributed refinement history.
         
         newFld.rmap(addedFld, addedToNew);
      
-     
+  5.  [CRASH] When using a chemistry solver, the DimensionedField `deltaTChem` in 
+      basicChemistryModel.H is not properly mapped/distributed for reasons unknown.
+      An easy workaround is to change it to a GeometricField by making the following
+      edits:
+      
+   * In basicChemistryModel.H change `DimensionedField<scalar, volMesh> deltaTChem_;`
+      to `GeometricField<scalar, fvPatchField, volMesh> deltaTChem_;` and add
+      `#include GeometricField.H` and `#include fvPatchField.H` to the list of included
+      headers
+
+   * In basicChemistryModelI.H change both instances of `return deltaTChem_;` to
+     `return deltaTChem_.dimensionedInternalField();`
+      
+      Recompile the entire src directory since a lot of things link to this, and it
+      should work.
