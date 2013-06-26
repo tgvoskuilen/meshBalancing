@@ -13,6 +13,28 @@ mapped, but pointLevel is a bit more tricky.
 A workaround may be to reconstruct the cellLevel and pointLevel manually from the
 distributed refinement history.
 
+
+## Usage
+
+To use the balancing library with an existing 'DyM' solver you have to make the following
+edits to the case (in addition to the changes to the source code in the section below)
+
+  1. Add a linking statement to the new library in controlDict
+  
+        libs
+        (
+            "libdynamicFvMesh-dev.so"
+        );
+
+  2. Add the balanceParDict dictionary to the system folder (example in the library folder)
+  3. Change the mesh type in dynamicMeshDict to `dynamicRefineBalancedFvMesh`
+  4. Add the following two entries to the dynamicRefineFvMeshCoeffs dictionary (see the example
+     in the library folder)
+  
+        enableBalancing true;
+        allowableImbalance 0.15;
+
+
 ## OpenFOAM Source Changes (for 2.1.x)
 
   1. [ __CRASH__ ] Add guard in src/dynamicMesh/polyTopoChange/refinementHistory.C in
