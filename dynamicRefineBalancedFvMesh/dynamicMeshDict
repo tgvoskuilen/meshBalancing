@@ -20,6 +20,10 @@ dynamicFvMesh   dynamicRefineBalancedFvMesh;
 
 dynamicRefineFvMeshCoeffs
 {
+    // Entries for balancing
+    enableBalancing true;
+    allowableImbalance 0.15;
+
     // How often to refine
     refineInterval  1;
     // Field to be refinement on
