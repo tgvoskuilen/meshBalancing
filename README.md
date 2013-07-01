@@ -89,8 +89,12 @@ edits to the case (in addition to the changes to the source code in the section 
      omits mapping of the refValue, refGradient, and other stored fields in 
      mixed patches. The refValue is then left
      set to a section of allocated but unset memory if all the original faces 
-     of that patch get moved to another processor. Remove the manual loop
-     near the end of the function and use the rmap function with a reversed map
+     of that patch get moved to another processor. A similar edit may be required in
+     the same file near line 578 for the MapSurfaceField function, although errors from
+     this have not shown up in my tests so far.
+
+     Remove the manual loop
+     near the end of the function(s) and use the rmap function with a reversed map
      by replacing
      
         forAll(newFld, i)
