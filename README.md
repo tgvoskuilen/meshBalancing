@@ -139,5 +139,16 @@ edits to the case (in addition to the changes to the source code in the section 
       2. In basicChemistryModelI.H change both instances of `return deltaTChem_;` to
          `return deltaTChem_.dimensionedInternalField();`
       
-      
+  6.  [ __INFREQUENT CRASH__ ] The version of scotch shipped with OpenFOAM-2.1.x (Version 5.1.11)
+      has a bug that will show up sometimes when you are balancing the mesh. The error will say
+      something to the effect of `dgraphFoldComm: internal error (3)`. Sometimes restarting the run
+      is enough to recover, but occassionally it cannot get past that. The solution is to upgrade
+      scotch to 5.1.12 (do NOT upgrade to 6.0.0, it is not compatible with OpenFOAM-2.1.x).
+
+      To do this upgrade, download and extract the source files for scotch 5.1.12 into 
+      ThirdParty-2.1.x/scotch_5.1.12. Next, change OpenFOAM-2.1.x/etc/config/scotch.sh to point
+      to this new folder. Clean the third party directory with its `Allclean` and recompile it
+      with its `Allwmake`. Then go to OpenFOAM-2.1.x/src/parallel and clean it with `wclean` and
+      `rmdepall`. Recompile it with its `Allwmake`. Then, just to be sure, go to OpenFOAM-2.1.x/src
+      and run `Allwmake`.
 
