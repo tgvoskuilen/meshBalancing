@@ -170,14 +170,12 @@ edits to the case (in addition to the changes to the source code in the section 
      where refinement is triggered at a value of 10. This cell, rather than being left
      alone, will be coarsened. It should use the maximum value rather than the minimum
      value. To change this, in `dynamicRefineFvMesh.H` on line 112 change `minCellField`
-     to `maxCellField`. In `dynamicRefineFvMesh.C`, make the following 4 changes:
+     to `maxCellField`. In `dynamicRefineFvMesh.C`, make the following 4 changes. Line 
+     numbers here may not match your line numbers exactly, so use some common sense.
+     Changes 103 will all be in the existing `minCellField` function and change 4 is the only
+     location in the file that referenced the `minCellField` function.
      
      1. Line 646: change `minCellField` to `maxCellField`
      2. Line 648: change `GREAT` to `-GREAT`
      3. Line 656: change `min` to `max`
      4. Line 1236: change `minCellField` to `maxCellField`
-     
-     Line numbers here may not match your line numbers exactly, so use some common sense.
-     Changes 103 will all be in the existing `minCellField` function and change 4 is the only
-     location in the file that referenced the `minCellField` function.
-     
