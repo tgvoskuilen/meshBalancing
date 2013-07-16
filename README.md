@@ -152,3 +152,28 @@ edits to the case (in addition to the changes to the source code in the section 
       `rmdepall`. Recompile it with its `Allwmake`. Then, just to be sure, go to OpenFOAM-2.1.x/src
       and run `Allwmake`.
 
+  7.  [__METHOD ERROR__] In the current implementation of dynamicRefineFvMesh, on which
+      this is based, a refined cell can be coarsened if the minimum refinementField value
+      in any of its child cells is less than the threshhold in the dictionary. This is
+      nonsense and leads to oscillatory refinement. Consider the following cell
+      
+         +------+------+
+         |      |      |
+         |  0   |  0   |
+         |      |      |
+         +------+------+
+         |      |      |
+         |  0   |  9   |
+         |      |      |
+         +------+------+
+         
+     where refinement is triggered at a value of 10. This cell, rather than being left
+     alone, will be coarsened. It should use the maximum value rather than the minimum
+     value. To change this, in `dynamicRefineFvMesh.H` on line 112 change `minCellField`
+     to `maxCellField`. In `dynamicRefineFvMesh.C`, make the following 4 changes:
+     
+     1. Line 646: change `minCellField` to `maxCellField`
+     2. Line 648: change `GREAT` to `-GREAT`
+     3. Line 656: change `min` to `max`
+     4. Line 1236: change `minCellField` to `maxCellField`
+     
