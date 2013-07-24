@@ -140,3 +140,32 @@ edits to the case (in addition to the changes to the source code in the section 
          `return deltaTChem_.dimensionedInternalField();`
       
 
+  7.  [ __METHOD ERROR__ ] In the current implementation of dynamicRefineFvMesh, on which
+      this is based, a refined cell can be coarsened if the minimum refinementField value
+      in any of its child cells is less than the threshhold in the dictionary. This is
+      nonsense and leads to oscillatory refinement. Consider the following cell, showing the
+      value of `refinementField` in each cell
+      
+         +------+------+
+         |      |      |
+         |  0   | 9.9  |
+         |      |      |
+         +------+------+
+         |      |      |
+         | 9.9  | 9.9  |
+         |      |      |
+         +------+------+
+         
+     where refinement is triggered at a value of 10 and unrefinement at a value of, say, 0.5. 
+     This cell, rather than being left
+     alone, will be coarsened. It should use the maximum value rather than the minimum
+     value. To change this, in `dynamicRefineFvMesh.H` on line 112 change `minCellField`
+     to `maxCellField`. In `dynamicRefineFvMesh.C`, make the following 4 changes. Line 
+     numbers here may not match your line numbers exactly, so use some common sense.
+     Changes 1-3 will all be in the existing `minCellField` function and change 4 is the only
+     location in the file that referenced the `minCellField` function.
+     
+     1. Line 646: change `minCellField` to `maxCellField`
+     2. Line 648: change `GREAT` to `-GREAT`
+     3. Line 656: change `min` to `max`
+     4. Line 1236: change `minCellField` to `maxCellField`
