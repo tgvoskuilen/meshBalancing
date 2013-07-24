@@ -140,7 +140,7 @@ edits to the case (in addition to the changes to the source code in the section 
          `return deltaTChem_.dimensionedInternalField();`
       
 
-  7.  [ __METHOD ERROR__ ] In the current implementation of dynamicRefineFvMesh, on which
+  6.  [ __METHOD ERROR__ ] In the current implementation of dynamicRefineFvMesh, on which
       this is based, a refined cell can be coarsened if the minimum refinementField value
       in any of its child cells is less than the threshhold in the dictionary. This is
       nonsense and leads to oscillatory refinement. Consider the following cell, showing the
