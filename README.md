@@ -168,7 +168,8 @@ edits to the case (in addition to the changes to the source code in the section 
          |      |      |
          +------+------+
          
-     where refinement is triggered at a value of 10. This cell, rather than being left
+     where refinement is triggered at a value of 10 and unrefinement at a value of, say, 0.5. 
+     This cell, rather than being left
      alone, will be coarsened. It should use the maximum value rather than the minimum
      value. To change this, in `dynamicRefineFvMesh.H` on line 112 change `minCellField`
      to `maxCellField`. In `dynamicRefineFvMesh.C`, make the following 4 changes. Line 
