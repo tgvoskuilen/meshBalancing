@@ -173,7 +173,7 @@ edits to the case (in addition to the changes to the source code in the section 
      value. To change this, in `dynamicRefineFvMesh.H` on line 112 change `minCellField`
      to `maxCellField`. In `dynamicRefineFvMesh.C`, make the following 4 changes. Line 
      numbers here may not match your line numbers exactly, so use some common sense.
-     Changes 103 will all be in the existing `minCellField` function and change 4 is the only
+     Changes 1-3 will all be in the existing `minCellField` function and change 4 is the only
      location in the file that referenced the `minCellField` function.
      
      1. Line 646: change `minCellField` to `maxCellField`
