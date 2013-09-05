@@ -181,3 +181,10 @@ edits to the case (in addition to the changes to the source code in the section 
      2. Line 648: change `GREAT` to `-GREAT`
      3. Line 656: change `min` to `max`
      4. Line 1236: change `minCellField` to `maxCellField`
+
+  8. [ __CRASH__ ] When using viscosity models other than Newtonian in multiphase systems, each
+     model creates a field named "nu" which conflict with each other when re-balancing the mesh.
+     To fix it, for example in `BirdCarreau.C`, change `"nu"` on line 79 to `"BirdCarreau::"+name`
+     so the field has a unique name. A similar modification can be made for the other viscosity
+     models if needed.
+
