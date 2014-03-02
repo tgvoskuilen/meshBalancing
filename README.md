@@ -125,7 +125,8 @@ edits to the case (in addition to the changes to the source code in the section 
   5.  [ __CRASH__ ] DimensionedFields are not properly distributed in the current implementation. To enable distribution of DimensionedFields you will have to make the following changes:
       
     1. Add a constructor for DimensionedField which is consistent with the one
-       used in fvMeshSubset
+       used in fvMeshSubset. I recommend you recompile the entire src directory 
+       after this step.
          
        **src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedField.H**
 
