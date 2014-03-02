@@ -122,32 +122,14 @@ edits to the case (in addition to the changes to the source code in the section 
         
         newFld.rmap(addedFld, addedToNew);
      
-  5.  [ __CRASH__ ] When using a chemistry solver, the DimensionedField `deltaTChem` in 
-      basicChemistryModel.H is not properly mapped/distributed. This is because both
-      `fvMeshDistributor::distribute` and `fvMeshAdder::add` only consider GeometricFields,
-      ignoring DimensionedFields. However, `fvMesh::mapFields` looks at both Geometric
-      and Dimensioned fields.
-
-      An easy workaround is to change `deltaTChem` to a GeometricField by making the following
-      edits, then recompiling the entire src directory since a lot of libraries link to this.
+  5.  [ __CRASH__ ] DimensionedFields are not properly distributed in the current implementation. To enable distribution of DimensionedFields you will have to make the following changes:
       
-      1. In basicChemistryModel.H change `DimensionedField<scalar, volMesh> deltaTChem_;`
-         to `GeometricField<scalar, fvPatchField, volMesh> deltaTChem_;` and add
-         `#include GeometricField.H` and `#include fvPatchField.H` to the list of included
-         headers
-
-      2. In basicChemistryModelI.H change both instances of `return deltaTChem_;` to
-         `return deltaTChem_.dimensionedInternalField();`
+    1. Add a constructor for DimensionedField which is consistent with the one
+       used in fvMeshSubset
          
-      The more difficult fix is to enable distribution of DimensionedFields by
-      taking the following steps:
-      
-      1. Add a constructor for DimensionedField which is consistent with the one
-         used in fvMeshSubset
-         
-        **src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedField.H**
+       **src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedField.H**
 
-        _line 151ish, add:_
+       _line 151ish, add:_
 
             //- Construct from dictionary
             DimensionedField
@@ -158,9 +140,9 @@ edits to the case (in addition to the changes to the source code in the section 
                 const word& fieldDictEntry="value"
             );
             
-        **src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldIO.C**
+       **src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldIO.C**
 
-        _line 82ish, add:_
+       _line 82ish, add:_
 
             template<class Type, class GeoMesh>
             Foam::DimensionedField<Type, GeoMesh>::DimensionedField
@@ -179,8 +161,8 @@ edits to the case (in addition to the changes to the source code in the section 
                 readField(fieldDict, fieldDictEntry);
             }
       
-      2. Add an interpolate template to fvMeshSubset that can handle
-         a DimensionedField<type,volMesh> input
+    2. Add an interpolate template to fvMeshSubset that can handle
+       a DimensionedField<type,volMesh> input
       
         **src/finiteVolume/fvMesh/fvMeshSubset/fvMeshSubset.H**
 
@@ -255,7 +237,7 @@ edits to the case (in addition to the changes to the source code in the section 
                 );
             }
       
-      3. Update the field mapping in fvMeshAdder
+    3. Update the field mapping in fvMeshAdder
       
         **src/dynamicMesh/fvMeshAdder/fvMeshAdder.H**
 
@@ -379,7 +361,7 @@ edits to the case (in addition to the changes to the source code in the section 
             fvMeshAdder::MapDimFields<symmTensor>(mapPtr, mesh0, mesh1);
             fvMeshAdder::MapDimFields<tensor>(mapPtr, mesh0, mesh1);
             
-      4. Add in the actual distribution if the different types of
+    4. Add in the actual distribution if the different types of
          DimensionedFields in fvMeshDistribute.
          
         **src/dynamicMesh/fvMeshDistribute/fvMeshDistribute.C**
