@@ -32,6 +32,7 @@ License
 #include "surfaceFields.H"
 #include "syncTools.H"
 #include "pointFields.H"
+#include "fvCFD.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -55,6 +56,106 @@ Foam::label Foam::dynamicRefineBalancedFvMesh::topParentID(label p)
     }
 }
 
+void Foam::dynamicRefineBalancedFvMesh::updateRefinementField()
+{
+    volScalarField& intRefFld = *internalRefinementFieldPtr_;
+    
+    intRefFld = dimensionedScalar("zero",dimless,0.0);
+    
+    // First gradients
+    List<word> gradFieldNames = gradFields_.toc();
+    
+    forAll(gradFieldNames, i)
+    {
+        word fldName = gradFieldNames[i];
+        scalar wgt = gradFields_[fldName];
+        
+        const volScalarField& fld = this->lookupObject<volScalarField>(fldName);
+        
+        intRefFld.internalField() = max
+        (
+            intRefFld.internalField(),
+            wgt * mag(fvc::grad(fld)) * Foam::pow(this->V(),1.0/3.0)
+        );
+    }
+    
+    // Then curls
+    List<word> curlFieldNames = curlFields_.toc();
+    
+    forAll(curlFieldNames, i)
+    {
+        word fldName = curlFieldNames[i];
+        scalar wgt = curlFields_[fldName];
+        
+        const volVectorField& fld = this->lookupObject<volVectorField>(fldName);
+        
+        intRefFld.internalField() = max
+        (
+            intRefFld.internalField(),
+            wgt * mag(fvc::curl(fld)) * Foam::pow(this->V(),1.0/3.0)
+        );
+    }
+    
+    intRefFld.correctBoundaryConditions();
+    
+    Info<<"Min,max refinement field = " << Foam::min(intRefFld).value() << ", "
+        << Foam::max(intRefFld).value() << endl;
+        
+}
+
+void Foam::dynamicRefineBalancedFvMesh::readRefinementDict()
+{
+    dictionary dynamicMeshDict
+    (
+        IOdictionary
+        (
+            IOobject
+            (
+                "dynamicMeshDict",
+                time().constant(),
+                *this,
+                IOobject::MUST_READ_IF_MODIFIED,
+                IOobject::NO_WRITE,
+                false
+            )
+        )
+    );
+    
+    if( dynamicMeshDict.isDict("refinementControls") )
+    {
+        dictionary refineControlDict = 
+            dynamicMeshDict.subDict("refinementControls");
+        
+        Switch enable = 
+            refineControlDict.lookup("enableRefinementControl");
+    
+        enableRefinementControl_ = enable;
+        
+        if( enableRefinementControl_ )
+        {
+            // overwrite field name entry in dynamicRefineFvMeshCoeffs?
+            
+            // Read HashTable of gradient-refinement scalars
+            if( refineControlDict.found("gradients") )
+            {
+                gradFields_ = HashTable<scalar>
+                (
+                    refineControlDict.lookup("gradients")
+                );
+            }
+            
+            // Read HashTable of curl-refinement vectors
+            if( refineControlDict.found("curls") )
+            {
+                curlFields_ = HashTable<scalar>
+                (
+                    refineControlDict.lookup("curls")
+                );
+            }
+        }
+    }
+}
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::dynamicRefineBalancedFvMesh::dynamicRefineBalancedFvMesh
@@ -62,8 +163,33 @@ Foam::dynamicRefineBalancedFvMesh::dynamicRefineBalancedFvMesh
     const IOobject& io
 )
 :
-    dynamicRefineFvMesh(io)
-{}
+    dynamicRefineFvMesh(io),
+    internalRefinementFieldPtr_(NULL),
+    gradFields_(),
+    curlFields_(),
+    enableRefinementControl_(false)
+{
+    readRefinementDict();
+    
+    if( enableRefinementControl_ )
+    {
+        internalRefinementFieldPtr_ = new volScalarField
+        (
+            IOobject
+            (
+                "internalRefinementField",
+                this->time().timeName(),
+                *this,
+                IOobject::NO_READ,
+                IOobject::AUTO_WRITE
+            ),
+            *this,
+            dimensionedScalar("zero", dimless, 0.0)
+        );
+        
+        //updateRefinementField();
+    }
+}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
@@ -76,6 +202,14 @@ Foam::dynamicRefineBalancedFvMesh::~dynamicRefineBalancedFvMesh()
 
 bool Foam::dynamicRefineBalancedFvMesh::update()
 {
+    //Part 0 - Update internally calculated refinement field
+    readRefinementDict();
+    
+    if( enableRefinementControl_ )
+    {
+        updateRefinementField();
+    }
+    
     //Part 1 - Call normal update from dynamicRefineFvMesh
     bool hasChanged = dynamicRefineFvMesh::update();
     

@@ -36,6 +36,7 @@ SourceFiles
 #ifndef dynamicRefineBalancedFvMesh_H
 #define dynamicRefineBalancedFvMesh_H
 
+
 #include "dynamicFvMesh.H"
 #include "dynamicRefineFvMesh.H"
 #include "hexRef8.H"
@@ -44,6 +45,7 @@ SourceFiles
 #include "decompositionMethod.H"
 #include "fvMeshDistribute.H"
 #include "mapDistributePolyMesh.H"
+#include "HashTable.H"
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -60,7 +62,23 @@ class dynamicRefineBalancedFvMesh
     public dynamicRefineFvMesh
 {
 private:
-
+        //-
+        volScalarField* internalRefinementFieldPtr_;
+        
+        //-
+        HashTable<scalar> gradFields_;
+        
+        //-
+        HashTable<scalar> curlFields_;
+        
+        //-
+        Switch enableRefinementControl_;
+        
+        //-
+        void updateRefinementField();
+        
+        void readRefinementDict();
+        
         //- Disallow default bitwise copy construct
         dynamicRefineBalancedFvMesh(const dynamicRefineBalancedFvMesh&);
 
