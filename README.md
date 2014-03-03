@@ -8,7 +8,8 @@ to the update() function.
 Note: The redistributeParPlus function does NOT work. For some reason it does not
 redistribute the cellLevel and pointLevel fields (hexRef8.distribute crashes) so
 it is only redistributing the refinement history. The cellLevel volScalarField is
-mapped, but pointLevel is a bit more tricky.
+mapped, but pointLevel is a bit more tricky. The new version of redistributePar
+in OpenFOAM-2.3.x appears to have fixed this, but I have not yet tested it.
 
 A workaround may be to reconstruct the cellLevel and pointLevel manually from the
 distributed refinement history.
@@ -35,7 +36,7 @@ edits to the case (in addition to the changes to the source code in the section 
         allowableImbalance 0.15;
 
 
-## OpenFOAM Source Changes (for 2.1.x)
+## OpenFOAM Source Changes (for 2.3.x)
 
   1. [ __CRASH__ ] Add guard in src/dynamicMesh/polyTopoChange/refinementHistory.C in
      refinementHistory::distribute at line 927 to catch
