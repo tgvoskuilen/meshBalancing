@@ -15,11 +15,13 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-psiChemistryModel  ODEChemistryModel<gasThermoPhysics>;
+chemistryType
+{
+    chemistrySolver   ode;
+    chemistryThermo   psi;
+}
 
 chemistry           on;
-
-chemistrySolver     ode;
 
 initialChemicalTimeStep 1e-07;
 

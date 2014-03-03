@@ -17,6 +17,13 @@ FoamFile
 
 solvers
 {
+    "alpha.water.*"
+    {
+        nAlphaCorr      1;
+        nAlphaSubCycles 3;
+        cAlpha          1;
+    }
+    
     pcorr
     {
         solver          PCG;
@@ -39,7 +46,13 @@ solvers
         relTol          0;
         maxIter         100;
     }
-
+    
+    pcorrFinal
+    {
+        $pcorr;
+        tolerance       0;
+    }
+    
     p_rgh
     {
         solver          GAMG;
@@ -102,9 +115,6 @@ PIMPLE
     momentumPredictor no;
     nCorrectors     3;
     nNonOrthogonalCorrectors 0;
-    nAlphaCorr      1;
-    nAlphaSubCycles 3;
-    cAlpha          1;
 
     pRefPoint      (0.51 0.51 0.51);
     pRefValue      0;

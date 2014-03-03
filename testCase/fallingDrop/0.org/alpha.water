@@ -11,7 +11,7 @@ FoamFile
     format      ascii;
     class       volScalarField;
     location    "0";
-    object      alpha1;
+    object      alpha.water;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -28,7 +28,12 @@ boundaryField
         value           uniform 0.0;
     }
         
-    frontAndBack
+    front
+    {
+        type            symmetryPlane;
+    }
+    
+    back
     {
         type            symmetryPlane;
     }

@@ -13,7 +13,8 @@ touch processor0/test.foam
 touch processor1/test.foam
 touch processor2/test.foam
 touch processor3/test.foam
-runParallel `getApplication` 4
+#runParallel `getApplication` 4
+foamJob -parallel -screen interDyMFoam
 
 
 # ----------------------------------------------------------------- end-of-file

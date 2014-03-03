@@ -331,6 +331,7 @@ bool Foam::dynamicRefineBalancedFvMesh::update()
 
             scalar tolDim = globalMeshData::matchTol_ * bounds().mag();
             
+            
             fvMeshDistribute distributor(*this, tolDim);
             
             autoPtr<mapDistributePolyMesh> map =

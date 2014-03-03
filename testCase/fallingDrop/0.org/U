@@ -27,7 +27,12 @@ boundaryField
         value           uniform (0 0 0);
     }
     
-    frontAndBack
+    front
+    {
+        type            symmetryPlane;
+    }
+    
+    back
     {
         type            symmetryPlane;
     }

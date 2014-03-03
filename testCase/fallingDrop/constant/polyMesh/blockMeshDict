@@ -51,15 +51,22 @@ boundary
         );
     }
 
-    frontAndBack
+    front
     {
       type symmetryPlane;
       faces
       (
        (3 2 6 7)
+      );
+    }
+    
+    back
+    {
+      type symmetryPlane;
+      faces
+      (
        (5 1 0 4)
       );
-
     }
 );
 

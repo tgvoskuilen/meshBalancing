@@ -35,6 +35,10 @@ edits to the case (in addition to the changes to the source code in the section 
         enableBalancing true;
         allowableImbalance 0.15;
 
+## Notes
+
+To use this with interDyMFoam, you have to move the call to createPrghCorrTypes
+inside correctPhi.H to avoid a crash when the number of patches changes.
 
 ## OpenFOAM Source Changes (for 2.3.x)
 
@@ -83,45 +87,14 @@ edits to the case (in addition to the changes to the source code in the section 
             }
         }
         
-  4. [ __CRASH__ ] Mapping of patches had an error for mixed patches. In
-     src/dynamicMesh/fvMeshAdder/fvMeshAdderTemplates.C in function
-     `fvMeshAdder::MapVolField` around line 263 there is a section where imported patch values
-     are mapped to existing patches. This correctly maps the patch value, but
-     omits mapping of the refValue, refGradient, and other stored fields in 
-     mixed patches. The refValue is then left
-     set to a section of allocated but unset memory if all the original faces 
-     of that patch get moved to another processor. A similar edit may be required in
-     the same file near line 578 for the MapSurfaceField function, although errors from
-     this have not shown up in my tests so far.
+  4. [ __WARNINGS__ ] There was a small change in version 2.2.x in
+     src/dynamicMesh/fvMeshAdder/fvMeshAdderTemplates.C which results in an
+     excessive number of warnings. In the `MapVolField` function, there are
+     three calls to `calcPatchMap`. The map given to the patches may contain
+     unmapped cells until the last mapping. To supress the warnings, change the
+     unmapped value entry in the first two calls from -1 to 0 (the value it
+     used to be).
 
-     Remove the manual loop
-     near the end of the function(s) and use the rmap function with a reversed map
-     by replacing
-     
-        forAll(newFld, i)
-        {
-            label oldFaceI = newToAdded[i];
-        
-            if (oldFaceI >= 0 && oldFaceI < addedFld.size())
-            {
-                newFld[i] = addedFld[oldFaceI];
-            } 
-        }
-        
-    with
-    
-        labelList addedToNew(addedFld.size(),-1);
-        forAll(newFld, i)
-        {
-            label oldFaceI = newToAdded[i];
-
-            if (oldFaceI >= 0 && oldFaceI < addedFld.size())
-            {
-                addedToNew[oldFaceI] = i;
-            } 
-        }
-        
-        newFld.rmap(addedFld, addedToNew);
      
   5.  [ __CRASH__ ] DimensionedFields are not properly distributed in the current implementation. To enable distribution of DimensionedFields you will have to make the following changes:
       
@@ -307,24 +280,59 @@ edits to the case (in addition to the changes to the source code in the section 
                 const fvMesh& meshToAdd
             )
             {
-                HashTable<const DimensionedField<Type, volMesh>*> fields
+                // This is a fix for the fact that the lookupClass function
+                // now returns all the internal fields of GeometricFields when
+                // called for a DimensionedField, but the typeName approach
+                // differentiates between them.
+                
+                const wordList dimFieldNames
                 (
-                    mesh.objectRegistry::lookupClass
-                    <DimensionedField<Type, volMesh> >
-                    ()
+                    mesh.names(DimensionedField<Type, volMesh>::typeName)
                 );
-
-                HashTable<const DimensionedField<Type, volMesh>*> fieldsToAdd
+                
+                const wordList dimFieldNamesToAdd
                 (
-                    meshToAdd.objectRegistry::lookupClass
-                    <DimensionedField<Type, volMesh> >
-                    ()
+                    meshToAdd.names(DimensionedField<Type, volMesh>::typeName)
                 );
-
+                
+                
+                HashTable<const DimensionedField<Type, volMesh>&> fields
+                (
+                    dimFieldNames.size()
+                );
+                
+                HashTable<const DimensionedField<Type, volMesh>&> fieldsToAdd
+                (
+                    dimFieldNamesToAdd.size()
+                );
+                
+                forAll(dimFieldNames, i)
+                {
+                    fields.insert
+                    (
+                        dimFieldNames[i],
+                        mesh.lookupObject<DimensionedField<Type, volMesh> >
+                        (
+                            dimFieldNames[i]
+                        )
+                    );
+                }
+                
+                forAll(dimFieldNamesToAdd, i)
+                {
+                    fieldsToAdd.insert
+                    (
+                        dimFieldNamesToAdd[i],
+                        meshToAdd.lookupObject<DimensionedField<Type, volMesh> >
+                        (
+                            dimFieldNamesToAdd[i]
+                        )
+                    );
+                }
 
                 for
                 (
-                    typename HashTable<const DimensionedField<Type, volMesh>*>::
+                    typename HashTable<const DimensionedField<Type, volMesh>&>::
                         iterator fieldIter = fields.begin();
                     fieldIter != fields.end();
                     ++fieldIter
@@ -333,13 +341,13 @@ edits to the case (in addition to the changes to the source code in the section 
                     DimensionedField<Type, volMesh>& fld =
                         const_cast<DimensionedField<Type, volMesh>&>
                         (
-                            *fieldIter()
+                            fieldIter()
                         );
 
                     if (fieldsToAdd.found(fld.name()))
                     {
                         const DimensionedField<Type, volMesh>& fldToAdd =
-                            *fieldsToAdd[fld.name()];
+                            fieldsToAdd[fld.name()];
 
                         MapDimField<Type>(meshMap, fld, fldToAdd);
                     }
