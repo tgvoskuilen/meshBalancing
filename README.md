@@ -167,7 +167,7 @@ edits to the case (in addition to the changes to the source code in the section 
       
         **src/finiteVolume/fvMesh/fvMeshSubset/fvMeshSubset.H**
 
-        _line 345ish, add:_
+        _somewhere in the public functions, add:_
 
             //- Map dimensioned fields
             template<class Type>
@@ -242,7 +242,7 @@ edits to the case (in addition to the changes to the source code in the section 
       
         **src/dynamicMesh/fvMeshAdder/fvMeshAdder.H**
 
-        _line 148ish, add:_
+        _in the private functions, add:_
 
             //- Update single dimensioned Field.
             template<class Type>
@@ -254,7 +254,7 @@ edits to the case (in addition to the changes to the source code in the section 
                 const DimensionedField<Type, volMesh>& fldToAdd
             );
 
-        _line 190ish, add:_
+        _in the public functions, add:_
 
             //- Map all dimensionedFields of Type
             template<class Type>
@@ -267,7 +267,7 @@ edits to the case (in addition to the changes to the source code in the section 
 
         **src/dynamicMesh/fvMeshAdder/fvMeshAdderTemplates.C**
 
-        _line 353ish, add:_
+        _anywhere in the member functions section, add:_
 
             template<class Type>
             void Foam::fvMeshAdder::MapDimField
@@ -292,8 +292,8 @@ edits to the case (in addition to the changes to the source code in the section 
 
                     intFld.setSize(mesh.nCells());
 
-                    map(oldInternalField, meshMap.oldCellMap(), intFld);
-                    map(fldToAdd, meshMap.addedCellMap(), intFld);
+                    intFld.rmap(oldInternalField, meshMap.oldCellMap());
+                    intFld.rmap(fldToAdd, meshMap.addedCellMap());
                 }
             }
 
@@ -354,7 +354,7 @@ edits to the case (in addition to the changes to the source code in the section 
 
         **src/dynamicMesh/fvMeshAdder/fvMeshAdder.C**
 
-        _line 104ish, add:_
+        _line 104ish, in the `add` function, add:_
 
             fvMeshAdder::MapDimFields<scalar>(mapPtr, mesh0, mesh1);
             fvMeshAdder::MapDimFields<vector>(mapPtr, mesh0, mesh1);
@@ -367,7 +367,7 @@ edits to the case (in addition to the changes to the source code in the section 
          
         **src/dynamicMesh/fvMeshDistribute/fvMeshDistribute.C**
                 
-        _line 1735ish, add:_
+        _line 1527ish, add:_
             
             const wordList dimScalarFields
             (
@@ -401,7 +401,7 @@ edits to the case (in addition to the changes to the source code in the section 
             
             
             
-        _line 1997ish (immediately after the sendFields<surfaceTensorField>, add:_
+        _line 1790ish (immediately after the sendFields<surfaceTensorField>, add:_
             
             sendFields<DimensionedField<scalar,volMesh> >
             (
@@ -439,7 +439,7 @@ edits to the case (in addition to the changes to the source code in the section 
                 str
             );
             
-        _line 2180ish (after the PtrList<surfaceTensorField> line), add:_
+        _line 1970ish (after the PtrList<surfaceTensorField> line), add:_
 
             PtrList<DimensionedField<scalar,volMesh> > isf;
             PtrList<DimensionedField<vector,volMesh> > ivf;
@@ -447,7 +447,7 @@ edits to the case (in addition to the changes to the source code in the section 
             PtrList<DimensionedField<symmTensor,volMesh> > isytf;
             PtrList<DimensionedField<tensor,volMesh> > itf;
             
-        _line 2290ish (after the receiveFields<surfaceTensorField> call), add:_
+        _line 2080ish (after the receiveFields<surfaceTensorField> call), add:_
 
             receiveFields<DimensionedField<scalar,volMesh> >
             (

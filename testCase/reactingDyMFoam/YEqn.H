@@ -10,8 +10,8 @@ tmp<fv::convectionScheme<scalar> > mvConvection
 );
 
 {
-    combustion->correct();
-    dQ = combustion->dQ();
+    reaction->correct();
+    dQ = reaction->dQ();
     label inertIndex = -1;
     volScalarField Yt(0.0*Y[0]);
 
@@ -27,11 +27,17 @@ tmp<fv::convectionScheme<scalar> > mvConvection
               + mvConvection->fvmDiv(phi, Yi)
               - fvm::laplacian(turbulence->muEff(), Yi)
              ==
-                combustion->R(Yi)
+                reaction->R(Yi)
+              + fvOptions(rho, Yi)
             );
 
             YiEqn.relax();
+
+            fvOptions.constrain(YiEqn);
+
             YiEqn.solve(mesh.solver("Yi"));
+
+            fvOptions.correct(Yi);
 
             Yi.max(0.0);
             Yt += Yi;

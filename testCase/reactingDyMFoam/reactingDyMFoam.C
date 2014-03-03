@@ -30,11 +30,12 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "fvCFD.H"
-#include "dynamicFvMesh.H"  // Added for DyM
+#include "dynamicFvMesh.H"
 #include "turbulenceModel.H"
-#include "psiChemistryCombustionModel.H"
+#include "psiCombustionModel.H"
 #include "multivariateScheme.H"
 #include "pimpleControl.H"
+#include "fvIOoptionList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -42,10 +43,10 @@ int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
     #include "createTime.H"
-    //#include "createMesh.H"        //Commented out for DyM
-    #include "createDynamicFvMesh.H" //Added for DyM
+    #include "createDynamicFvMesh.H"
     #include "readGravitationalAcceleration.H"
     #include "createFields.H"
+    #include "createFvOptions.H"
     #include "initContinuityErrs.H"
     #include "readTimeControls.H"
     
@@ -118,7 +119,7 @@ int main(int argc, char *argv[])
         {
             #include "UEqn.H"
             #include "YEqn.H"
-            #include "hsEqn.H"
+            #include "EEqn.H"
 
             // --- Pressure corrector loop
             while (pimple.correct())

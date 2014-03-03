@@ -1,16 +1,12 @@
 Info<< "Creating combustion model\n" << endl;
 
-autoPtr<combustionModels::psiChemistryCombustionModel> combustion
+autoPtr<combustionModels::psiCombustionModel> reaction
 (
-    combustionModels::psiChemistryCombustionModel::New
-    (
-        mesh
-    )
+    combustionModels::psiCombustionModel::New(mesh)
 );
 
-psiChemistryModel& chemistry = combustion->pChemistry();
-
-hsCombustionThermo& thermo = chemistry.thermo();
+psiReactionThermo& thermo = reaction->thermo();
+thermo.validate(args.executable(), "h", "e");
 
 basicMultiComponentMixture& composition = thermo.composition();
 PtrList<volScalarField>& Y = composition.Y();
@@ -47,7 +43,6 @@ volVectorField U
 
 volScalarField& p = thermo.p();
 const volScalarField& psi = thermo.psi();
-volScalarField& hs = thermo.hs();
 const volScalarField& T = thermo.T();
 
 #include "compressibleCreatePhi.H"
@@ -65,7 +60,7 @@ autoPtr<compressible::turbulenceModel> turbulence
 );
 
 // Set the turbulence into the combustion model
-combustion->setTurbulence(turbulence());
+reaction->setTurbulence(turbulence());
 
 
 Info<< "Creating field dpdt\n" << endl;
@@ -81,7 +76,7 @@ forAll(Y, i)
 {
     fields.add(Y[i]);
 }
-fields.add(hs);
+fields.add(thermo.he());
 
 volScalarField dQ
 (
