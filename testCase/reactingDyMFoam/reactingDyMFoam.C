@@ -1,0 +1,142 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | Copyright (C) 2014 Tyler Voskuilen
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+Application
+    reactingDyMFoam
+
+Description
+    Solver for combustion with chemical reactions and dynamic meshing.
+
+\*---------------------------------------------------------------------------*/
+
+#include "fvCFD.H"
+#include "dynamicFvMesh.H"
+#include "turbulenceModel.H"
+#include "psiCombustionModel.H"
+#include "multivariateScheme.H"
+#include "pimpleControl.H"
+#include "fvIOoptionList.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+int main(int argc, char *argv[])
+{
+    #include "setRootCase.H"
+    #include "createTime.H"
+    #include "createDynamicFvMesh.H"
+    #include "readGravitationalAcceleration.H"
+    #include "createFields.H"
+    #include "createFvOptions.H"
+    #include "initContinuityErrs.H"
+    #include "readTimeControls.H"
+    
+    pimpleControl pimple(mesh);
+    volScalarField divPhi(fvc::div(phi));
+
+    #include "correctPhi.H"
+    #include "compressibleCourantNo.H"
+    #include "setInitialDeltaT.H"
+    
+    // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+    Info<< "\nStarting time loop\n" << endl;
+
+    while (runTime.run())
+    {
+        #include "readTimeControls.H"
+        
+        bool correctPhi =
+            pimple.dict().lookupOrDefault<Switch>("correctPhi", true);
+        bool checkMeshCourantNo =
+            pimple.dict().lookupOrDefault<Switch>("checkMeshCourantNo", false);
+        
+        #include "compressibleCourantNo.H"
+        #include "setDeltaT.H"
+
+        runTime++;
+        Info<< "Time = " << runTime.timeName() << nl << endl;
+
+        //Added for DyM
+        
+        scalar timeBeforeMeshUpdate = runTime.elapsedCpuTime();
+
+        {
+            divPhi = fvc::div(phi);
+
+            // Do any mesh changes
+            mesh.update();
+        }
+
+        if (mesh.changing())
+        {
+            Info<< "Execution time for mesh.update() = "
+                << runTime.elapsedCpuTime() - timeBeforeMeshUpdate
+                << " s" << endl;
+        }
+
+        if (mesh.changing() && correctPhi)
+        {
+            #include "correctPhi.H"
+        }
+
+        if (mesh.changing() && checkMeshCourantNo)
+        {
+            #include "meshCourantNo.H"
+        }
+        
+        //End added for DyM
+        
+        #include "rhoEqn.H"
+
+        while (pimple.loop())
+        {
+            #include "UEqn.H"
+            #include "YEqn.H"
+            #include "EEqn.H"
+
+            // --- Pressure corrector loop
+            while (pimple.correct())
+            {
+                #include "pEqn.H"
+            }
+
+            if (pimple.turbCorr())
+            {
+                turbulence->correct();
+            }
+        }
+
+        runTime.write();
+
+        Info<< "ExecutionTime = " << runTime.elapsedCpuTime() << " s"
+            << "  ClockTime = " << runTime.elapsedClockTime() << " s"
+            << nl << endl;
+    }
+
+    Info<< "End\n" << endl;
+
+    return 0;
+}
+
+
+// ************************************************************************* //
