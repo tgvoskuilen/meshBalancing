@@ -2,7 +2,7 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | Copyright (C) 2014 Tyler Voskuilen
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
@@ -32,8 +32,7 @@ void Foam::dynamicRefineBalancedFvMesh::correctBoundaries()
 {
     typedef GeometricField<Type, fvPatchField, volMesh> GeoField;
 
-    HashTable<GeoField*>
-        flds(this->objectRegistry::lookupClass<GeoField>());
+    HashTable<GeoField*> flds(this->objectRegistry::lookupClass<GeoField>());
 
     forAllIter(typename HashTable<GeoField*>, flds, iter)
     {
