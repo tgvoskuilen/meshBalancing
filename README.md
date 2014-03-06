@@ -5,15 +5,9 @@ This contains a single library, dynamicRefineBalancedFvMesh which is
 based on dynamicRefineFvMesh but adds mesh balancing for parallel cases
 to the update() function.
 
-Note: The redistributeParPlus function does NOT work. For some reason it does not
-redistribute the cellLevel and pointLevel fields (hexRef8.distribute crashes) so
-it is only redistributing the refinement history. The cellLevel volScalarField is
-mapped, but pointLevel is a bit more tricky. The new version of redistributePar
-in OpenFOAM-2.3.x appears to have fixed this, but I have not yet tested it.
-
-A workaround may be to reconstruct the cellLevel and pointLevel manually from the
-distributed refinement history.
-
+This works in OpenFOAM-2.3.x with the interFoam family of solvers, but not the
+chemistry-based solvers yet, due to an issue with the redistribution of
+DimensionedFields.
 
 ## Usage
 
@@ -34,13 +28,22 @@ edits to the case (in addition to the changes to the source code in the section 
   
         enableBalancing true;
         allowableImbalance 0.15;
-
+        
+  5. You can also add a `refinementControl` entry to enable refinement based on
+     field gradients, field curl, and specified regions of refinement.
+  
 ## Notes
 
 To use this with interDyMFoam, you have to move the call to createPrghCorrTypes
-inside correctPhi.H to avoid a crash when the number of patches changes.
+inside correctPhi.H to avoid a crash when the number of patches changes and
+recompile the solver.
 
 ## OpenFOAM Source Changes (for 2.3.x)
+
+To use this library with interDyMFoam and similar solvers, you do not need to
+make all the listed edits. Fixing issues 1, 2, 3, 4, and 6 should allow most
+simulations to be run without error. If you are using non-Newtonian viscosity
+models you will have to fix issue 7 too.
 
   1. [ __CRASH__ ] Add guard in src/dynamicMesh/polyTopoChange/refinementHistory.C in
      refinementHistory::distribute at line 927 to catch
@@ -90,13 +93,16 @@ inside correctPhi.H to avoid a crash when the number of patches changes.
   4. [ __WARNINGS__ ] There was a small change in version 2.2.x in
      src/dynamicMesh/fvMeshAdder/fvMeshAdderTemplates.C which results in an
      excessive number of warnings. In the `MapVolField` function, there are
-     three calls to `calcPatchMap`. The map given to the patches may contain
+     two calls to `calcPatchMap`. The map given to the patches may contain
      unmapped cells until the last mapping. To supress the warnings, change the
-     unmapped value entry in the first two calls from -1 to 0 (the value it
-     used to be).
+     unmapped value entry from -1 to 0 (the value it used to be) on lines 139
+     and 201. A similar edit is required in `MapSurfaceField` on lines 447
+     and 508.
 
      
-  5.  [ __CRASH__ ] DimensionedFields are not properly distributed in the current implementation. To enable distribution of DimensionedFields you will have to make the following changes:
+  5.  [ __CRASH__ ] DimensionedFields are not properly distributed in the 
+      current implementation. To enable distribution of DimensionedFields 
+      you will have to make the following changes:
       
     1. Add a constructor for DimensionedField which is consistent with the one
        used in fvMeshSubset. I recommend you recompile the entire src directory 
@@ -499,24 +505,12 @@ inside correctPhi.H to avoid a crash when the number of patches changes.
                 fieldDicts.subDict(DimensionedField<tensor,volMesh>::typeName)
             );
             
-            
-  6.  [ __INFREQUENT CRASH__ ] The version of scotch shipped with OpenFOAM-2.1.x (Version 5.1.11)
-      has a bug that will show up sometimes when you are balancing the mesh. The error will say
-      something to the effect of `dgraphFoldComm: internal error (3)`. Sometimes restarting the run
-      is enough to recover, but occassionally it cannot get past that. The solution is to upgrade
-      scotch to 5.1.12 (do NOT upgrade to 6.0.0, it is not compatible with OpenFOAM-2.1.x).
 
-      To do this upgrade, download and extract the source files for scotch 5.1.12 into 
-      ThirdParty-2.1.x/scotch_5.1.12. Next, change OpenFOAM-2.1.x/etc/config/scotch.sh to point
-      to this new folder. Clean the third party directory with its `Allclean` and recompile it
-      with its `Allwmake`. Then go to OpenFOAM-2.1.x/src/parallel and clean it with `wclean` and
-      `rmdepall`. Recompile it with its `Allwmake`. Then, just to be sure, go to OpenFOAM-2.1.x/src
-      and run `Allwmake`.
-
-  7.  [ __METHOD ERROR__ ] In the current implementation of dynamicRefineFvMesh, on which
+  6.  [ __METHOD ERROR__ ] In the current implementation of dynamicRefineFvMesh, on which
       this is based, a refined cell can be coarsened if the minimum refinementField value
-      in any of its child cells is less than the threshhold in the dictionary. This is
-      nonsense and leads to oscillatory refinement. Consider the following cell, showing the
+      in any of its child cells is less than the threshhold in the dictionary. This
+      leads to oscillatory refinement when the edge of the refinement field
+      is sharply defined. Consider the following cell, showing the
       value of `refinementField` in each cell
       
          +------+------+
@@ -543,9 +537,9 @@ inside correctPhi.H to avoid a crash when the number of patches changes.
      3. Line 656: change `min` to `max`
      4. Line 1236: change `minCellField` to `maxCellField`
 
-  8. [ __CRASH__ ] When using viscosity models other than Newtonian in multiphase systems, each
+  7. [ __CRASH__ ] When using viscosity models other than Newtonian in multiphase systems, each
      model creates a field named "nu" which conflict with each other when re-balancing the mesh.
-     To fix it, for example in `BirdCarreau.C`, change `"nu"` on line 79 to `"BirdCarreau::"+name`
+     To fix it, for example in `BirdCarreau.C`, change `"nu"` on line 79 to `"BirdCarreauNu."+name`
      so the field has a unique name. A similar modification can be made for the other viscosity
      models if needed.
 

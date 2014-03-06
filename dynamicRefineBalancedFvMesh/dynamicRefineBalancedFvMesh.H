@@ -46,7 +46,10 @@ SourceFiles
 #include "fvMeshDistribute.H"
 #include "mapDistributePolyMesh.H"
 #include "HashTable.H"
-
+#include "topoSetSource.H"
+#include "cellSet.H"
+#include "PtrDictionary.H"
+#include "dictionaryEntry.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -61,15 +64,19 @@ class dynamicRefineBalancedFvMesh
 :
     public dynamicRefineFvMesh
 {
+   
 private:
         //-
         volScalarField* internalRefinementFieldPtr_;
         
         //-
-        HashTable<scalar> gradFields_;
+        HashTable< Pair<scalar> > gradFields_;
         
         //-
-        HashTable<scalar> curlFields_;
+        HashTable< Pair<scalar> > curlFields_;
+        
+        //-
+        PtrList<entry> refinedRegions_; 
         
         //-
         Switch enableRefinementControl_;
@@ -77,7 +84,11 @@ private:
         //-
         void updateRefinementField();
         
+        //-
         void readRefinementDict();
+        
+        //-
+        Pair<scalar> readRefinementPoints();
         
         //- Disallow default bitwise copy construct
         dynamicRefineBalancedFvMesh(const dynamicRefineBalancedFvMesh&);

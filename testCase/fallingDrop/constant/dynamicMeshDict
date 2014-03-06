@@ -17,6 +17,31 @@ FoamFile
 
 dynamicFvMesh   dynamicRefineBalancedFvMesh;
 
+refinementControls
+{
+    enableRefinementControl  true;
+    
+    gradients
+    (
+        alpha.water    (1000.0 10)
+    );
+    
+    curls
+    (
+        U   (0.5 1)
+    );
+    
+    regions
+    (
+        boxToCell
+        {
+            minLevel 1;
+            
+            box (-1 0.001 0.002)(1 0.005 0.003);
+        }
+        
+    );
+}
 
 dynamicRefineFvMeshCoeffs
 {
@@ -27,14 +52,14 @@ dynamicRefineFvMeshCoeffs
     refineInterval  1;
     
     // Field to be refinement on
-    field           alpha.water;
+    field           internalRefinementField;
     
     // Refine field inbetween lower..upper
-    lowerRefineLevel 0.001;
-    upperRefineLevel 0.999;
+    lowerRefineLevel 0.3;
+    upperRefineLevel 1e200;
     
     // If value < unrefineLevel unrefine
-    unrefineLevel   10;
+    unrefineLevel   0.05;
     
     // Have slower than 2:1 refinement
     nBufferLayers   1;
