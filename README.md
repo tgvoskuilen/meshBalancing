@@ -5,15 +5,6 @@ This contains a single library, dynamicRefineBalancedFvMesh which is
 based on dynamicRefineFvMesh but adds mesh balancing for parallel cases
 to the update() function.
 
-Note: The redistributeParPlus function does NOT work. For some reason it does not
-redistribute the cellLevel and pointLevel fields (hexRef8.distribute crashes) so
-it is only redistributing the refinement history. The cellLevel volScalarField is
-mapped, but pointLevel is a bit more tricky.
-
-A workaround may be to reconstruct the cellLevel and pointLevel manually from the
-distributed refinement history.
-
-
 ## Usage
 
 To use the balancing library with an existing 'DyM' solver you have to make the following
@@ -34,8 +25,21 @@ edits to the case (in addition to the changes to the source code in the section 
         enableBalancing true;
         allowableImbalance 0.15;
 
+  5. You can also add a `refinementControl` entry to enable refinement based on
+     field gradients, field curl, and specified regions of refinement.
+  
+## Notes
+
+To use this with interDyMFoam, you have to move the call to createPrghCorrTypes
+inside correctPhi.H to avoid a crash when the number of patches changes and
+recompile the solver.
 
 ## OpenFOAM Source Changes (for 2.2.x)
+
+To use this library with interDyMFoam and similar solvers, you do not need to
+make all the listed edits. Fixing issues 1, 2, 3, 4, and 6 should allow most
+simulations to be run without error. If you are using non-Newtonian viscosity
+models you will have to fix issue 7 too.
 
   1. [ __CRASH__ ] Add guard in src/dynamicMesh/polyTopoChange/polyTopoChange/refinementHistory.C in
      refinementHistory::distribute at line 927 to catch
@@ -82,45 +86,14 @@ edits to the case (in addition to the changes to the source code in the section 
             }
         }
         
-  4. [ __CRASH__ ] Mapping of patches had an error for mixed patches. In
-     src/dynamicMesh/fvMeshAdder/fvMeshAdderTemplates.C in function
-     `fvMeshAdder::MapVolField` around line 263 there is a section where imported patch values
-     are mapped to existing patches. This correctly maps the patch value, but
-     omits mapping of the refValue, refGradient, and other stored fields in 
-     mixed patches. The refValue is then left
-     set to a section of allocated but unset memory if all the original faces 
-     of that patch get moved to another processor. A similar edit may be required in
-     the same file near line 578 for the MapSurfaceField function, although errors from
-     this have not shown up in my tests so far.
-
-     Remove the manual loop
-     near the end of the function(s) and use the rmap function with a reversed map
-     by replacing
-     
-        forAll(newFld, i)
-        {
-            label oldFaceI = newToAdded[i];
-        
-            if (oldFaceI >= 0 && oldFaceI < addedFld.size())
-            {
-                newFld[i] = addedFld[oldFaceI];
-            } 
-        }
-        
-    with
-    
-        labelList addedToNew(addedFld.size(),-1);
-        forAll(newFld, i)
-        {
-            label oldFaceI = newToAdded[i];
-
-            if (oldFaceI >= 0 && oldFaceI < addedFld.size())
-            {
-                addedToNew[oldFaceI] = i;
-            } 
-        }
-        
-        newFld.rmap(addedFld, addedToNew);
+  4. [ __WARNINGS__ ] There was a small change in version 2.2.x in
+     src/dynamicMesh/fvMeshAdder/fvMeshAdderTemplates.C which results in an
+     excessive number of warnings. In the `MapVolField` function, there are
+     two calls to `calcPatchMap`. The map given to the patches may contain
+     unmapped cells until the last mapping. To supress the warnings, change the
+     unmapped value entry from -1 to 0 (the value it used to be) on lines 139
+     and 201. A similar edit is required in `MapSurfaceField` on lines 447
+     and 508.
      
   5.  [ __CRASH__ ] When using a chemistry solver, the DimensionedField `deltaTChem` in 
       basicChemistryModel.H is not properly mapped/distributed. This is because both
@@ -139,6 +112,8 @@ edits to the case (in addition to the changes to the source code in the section 
       2. In basicChemistryModelI.H change both instances of `return deltaTChem_;` to
          `return deltaTChem_.dimensionedInternalField();`
       
+      The more complex workaround is to add distribution of DimensionedFields to
+      the appropriate functions. See the 2.3.x branch for details on this.
 
   6.  [ __METHOD ERROR__ ] In the current implementation of dynamicRefineFvMesh, on which
       this is based, a refined cell can be coarsened if the minimum refinementField value
@@ -169,3 +144,9 @@ edits to the case (in addition to the changes to the source code in the section 
      2. Line 648: change `GREAT` to `-GREAT`
      3. Line 656: change `min` to `max`
      4. Line 1236: change `minCellField` to `maxCellField`
+     
+  7. [ __CRASH__ ] When using viscosity models other than Newtonian in multiphase systems, each
+     model creates a field named "nu" which conflict with each other when re-balancing the mesh.
+     To fix it, for example in `BirdCarreau.C`, change `"nu"` on line 79 to `"BirdCarreauNu."+name`
+     so the field has a unique name. A similar modification can be made for the other viscosity
+     models if needed.
