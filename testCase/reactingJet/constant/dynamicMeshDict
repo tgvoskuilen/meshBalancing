@@ -23,14 +23,14 @@ refinementControls
     
     gradients
     (
-        T    1.0
-        O2   1.5
-        CH4  1.5
+        T    (1.0  2)
+        O2   (1.5  2)
+        CH4  (1.5  2)
     );
     
     curls
     (
-        U   0.5
+        U   (0.5  1)
     );
 }
 
