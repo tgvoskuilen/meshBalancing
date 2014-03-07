@@ -11,7 +11,9 @@ EXE_INC = \
     -I$(LIB_SRC)/sampling/lnInclude \
     -I$(LIB_SRC)/dynamicMesh/lnInclude \
     -I$(LIB_SRC)/combustionModels/lnInclude \
-    -I$(LIB_SRC)/dynamicFvMesh/lnInclude
+    -I$(LIB_SRC)/dynamicFvMesh/lnInclude \
+    -I$(WM_PROJECT_DIR)/applications/solvers/combustion/reactingFoam
+
 
 EXE_LIBS = \
     -lcompressibleTurbulenceModel \
