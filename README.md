@@ -99,6 +99,11 @@ models you will have to fix issue 7 too.
      and 201. A similar edit is required in `MapSurfaceField` on lines 447
      and 508.
 
+     This switch to a default of -1 was also included in 
+     src/finiteVolume/fvMesh/fvMeshSubSet/fvMeshSubsetInterpolate.C in a number
+     of places. Find where `directAddressing` is set to a default of -1 and change
+     it to use a default of 0.
+
      
   5.  [ __CRASH__ ] DimensionedFields are not properly distributed in the 
       current implementation. To enable distribution of DimensionedFields 
