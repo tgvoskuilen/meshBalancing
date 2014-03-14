@@ -2,7 +2,7 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 Tyler Voskuilen
+    \\  /    A nd           | Copyright (C) 2014 Tyler Voskuilen
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
@@ -36,6 +36,7 @@ SourceFiles
 #ifndef dynamicRefineBalancedFvMesh_H
 #define dynamicRefineBalancedFvMesh_H
 
+
 #include "dynamicFvMesh.H"
 #include "dynamicRefineFvMesh.H"
 #include "hexRef8.H"
@@ -44,7 +45,12 @@ SourceFiles
 #include "decompositionMethod.H"
 #include "fvMeshDistribute.H"
 #include "mapDistributePolyMesh.H"
-
+#include "HashTable.H"
+#include "topoSetSource.H"
+#include "cellSet.H"
+#include "PtrDictionary.H"
+#include "dictionaryEntry.H"
+#include "wallFvPatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -59,8 +65,35 @@ class dynamicRefineBalancedFvMesh
 :
     public dynamicRefineFvMesh
 {
+   
 private:
-
+        //-
+        volScalarField* internalRefinementFieldPtr_;
+        
+        //-
+        HashTable< Pair<scalar> > gradFields_;
+        
+        //-
+        HashTable< Pair<scalar> > curlFields_;
+        
+        //-
+        PtrList<entry> refinedRegions_;
+        
+        //-
+        label minWallLevel_;
+        
+        //-
+        Switch enableRefinementControl_;
+        
+        //-
+        void updateRefinementField();
+        
+        //-
+        void readRefinementDict();
+        
+        //-
+        Pair<scalar> readRefinementPoints();
+        
         //- Disallow default bitwise copy construct
         dynamicRefineBalancedFvMesh(const dynamicRefineBalancedFvMesh&);
 
