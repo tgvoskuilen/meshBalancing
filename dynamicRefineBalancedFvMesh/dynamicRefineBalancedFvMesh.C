@@ -56,9 +56,11 @@ Foam::label Foam::dynamicRefineBalancedFvMesh::topParentID(label p)
     }
 }
 
+
 Foam::Pair<scalar> Foam::dynamicRefineBalancedFvMesh::readRefinementPoints()
 {
     dictionary refineDict
+}
     (
         IOdictionary
         (
@@ -80,6 +82,7 @@ Foam::Pair<scalar> Foam::dynamicRefineBalancedFvMesh::readRefinementPoints()
         readScalar(refineDict.lookup("lowerRefineLevel"))
     );
 }
+
 
 void Foam::dynamicRefineBalancedFvMesh::updateRefinementField()
 {

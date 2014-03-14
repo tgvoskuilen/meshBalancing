@@ -122,23 +122,375 @@ edits to the case (in addition to the changes to the source code in the section 
         
         newFld.rmap(addedFld, addedToNew);
      
-  5.  [ __CRASH__ ] When using a chemistry solver, the DimensionedField `deltaTChem` in 
-      basicChemistryModel.H is not properly mapped/distributed. This is because both
-      `fvMeshDistributor::distribute` and `fvMeshAdder::add` only consider GeometricFields,
-      ignoring DimensionedFields. However, `fvMesh::mapFields` looks at both Geometric
-      and Dimensioned fields.
-
-      An easy workaround is to change `deltaTChem` to a GeometricField by making the following
-      edits, then recompiling the entire src directory since a lot of libraries link to this.
+  5.  [ __CRASH__ ] DimensionedFields are not properly distributed in the current implementation. To enable distribution of DimensionedFields you will have to make the following changes:
       
-      1. In basicChemistryModel.H change `DimensionedField<scalar, volMesh> deltaTChem_;`
-         to `GeometricField<scalar, fvPatchField, volMesh> deltaTChem_;` and add
-         `#include GeometricField.H` and `#include fvPatchField.H` to the list of included
-         headers
+    1. Add a constructor for DimensionedField which is consistent with the one
+       used in fvMeshSubset. I recommend you recompile the entire src directory 
+       after this step.
+         
+       **src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedField.H**
 
-      2. In basicChemistryModelI.H change both instances of `return deltaTChem_;` to
-         `return deltaTChem_.dimensionedInternalField();`
+       _line 151ish, add:_
+
+            //- Construct from dictionary
+            DimensionedField
+            (
+                const IOobject&,
+                const Mesh& mesh,
+                const dictionary& fieldDict,
+                const word& fieldDictEntry="value"
+            );
+            
+       **src/OpenFOAM/fields/DimensionedFields/DimensionedField/DimensionedFieldIO.C**
+
+       _line 82ish, add:_
+
+            template<class Type, class GeoMesh>
+            Foam::DimensionedField<Type, GeoMesh>::DimensionedField
+            (
+                const IOobject& io,
+                const Mesh& mesh,
+                const dictionary& fieldDict,
+                const word& fieldDictEntry
+            )
+            :
+                regIOobject(io),
+                Field<Type>(0),
+                mesh_(mesh),
+                dimensions_(dimless)
+            {
+                readField(fieldDict, fieldDictEntry);
+            }
       
+    2. Add an interpolate template to fvMeshSubset that can handle
+       a DimensionedField<type,volMesh> input
+      
+        **src/finiteVolume/fvMesh/fvMeshSubset/fvMeshSubset.H**
+
+        _line 345ish, add:_
+
+            //- Map dimensioned fields
+            template<class Type>
+            static tmp<DimensionedField<Type, volMesh> >
+            interpolate
+            (
+                const DimensionedField<Type, volMesh>&,
+                const fvMesh& sMesh,
+                const labelList& cellMap
+            );
+            
+            template<class Type>
+            tmp<DimensionedField<Type, volMesh> >
+            interpolate
+            (
+                const DimensionedField<Type, volMesh>&
+            ) const;
+            
+        **src/finiteVolume/fvMesh/fvMeshSubset/fvMeshSubsetInterpolate.C**
+
+        _line 38ish, add:_
+
+            template<class Type>
+            tmp<DimensionedField<Type, volMesh> > fvMeshSubset::interpolate
+            (
+                const DimensionedField<Type, volMesh>& df,
+                const fvMesh& sMesh,
+                const labelList& cellMap
+            )
+            {
+                // Create and map the internal-field values
+                Field<Type> internalField(df, cellMap);
+
+                // Create the complete field from the pieces
+                tmp<DimensionedField<Type, volMesh> > tresF
+                (
+                    new DimensionedField<Type, volMesh>
+                    (
+                        IOobject
+                        (
+                            "subset"+df.name(),
+                            sMesh.time().timeName(),
+                            sMesh,
+                            IOobject::NO_READ,
+                            IOobject::NO_WRITE
+                        ),
+                        sMesh,
+                        df.dimensions(),
+                        internalField
+                    )
+                );
+
+                return tresF;
+            }
+
+
+            template<class Type>
+            tmp<DimensionedField<Type, volMesh> > fvMeshSubset::interpolate
+            (
+                const DimensionedField<Type, volMesh>& df
+            ) const
+            {
+                return interpolate
+                (
+                    df,
+                    subMesh(),
+                    cellMap()
+                );
+            }
+      
+    3. Update the field mapping in fvMeshAdder
+      
+        **src/dynamicMesh/fvMeshAdder/fvMeshAdder.H**
+
+        _line 148ish, add:_
+
+            //- Update single dimensioned Field.
+            template<class Type>
+            static void MapDimField
+            (
+                const mapAddedPolyMesh& meshMap,
+
+                DimensionedField<Type, volMesh>& fld,
+                const DimensionedField<Type, volMesh>& fldToAdd
+            );
+
+        _line 190ish, add:_
+
+            //- Map all dimensionedFields of Type
+            template<class Type>
+            static void MapDimFields
+            (
+                const mapAddedPolyMesh&,
+                const fvMesh& mesh,
+                const fvMesh& meshToAdd
+            );
+
+        **src/dynamicMesh/fvMeshAdder/fvMeshAdderTemplates.C**
+
+        _line 353ish, add:_
+
+            template<class Type>
+            void Foam::fvMeshAdder::MapDimField
+            (
+                const mapAddedPolyMesh& meshMap,
+
+                DimensionedField<Type, volMesh>& fld,
+                const DimensionedField<Type, volMesh>& fldToAdd
+            )
+            {
+                const fvMesh& mesh = fld.mesh();
+
+                // Internal field
+                // ~~~~~~~~~~~~~~
+
+                {
+                    // Store old internal field
+                    Field<Type> oldInternalField(fld);
+
+                    // Modify internal field
+                    Field<Type>& intFld = fld;
+
+                    intFld.setSize(mesh.nCells());
+
+                    map(oldInternalField, meshMap.oldCellMap(), intFld);
+                    map(fldToAdd, meshMap.addedCellMap(), intFld);
+                }
+            }
+
+
+            template<class Type>
+            void Foam::fvMeshAdder::MapDimFields
+            (
+                const mapAddedPolyMesh& meshMap,
+                const fvMesh& mesh,
+                const fvMesh& meshToAdd
+            )
+            {
+                HashTable<const DimensionedField<Type, volMesh>*> fields
+                (
+                    mesh.objectRegistry::lookupClass
+                    <DimensionedField<Type, volMesh> >
+                    ()
+                );
+
+                HashTable<const DimensionedField<Type, volMesh>*> fieldsToAdd
+                (
+                    meshToAdd.objectRegistry::lookupClass
+                    <DimensionedField<Type, volMesh> >
+                    ()
+                );
+
+
+                for
+                (
+                    typename HashTable<const DimensionedField<Type, volMesh>*>::
+                        iterator fieldIter = fields.begin();
+                    fieldIter != fields.end();
+                    ++fieldIter
+                )
+                {
+                    DimensionedField<Type, volMesh>& fld =
+                        const_cast<DimensionedField<Type, volMesh>&>
+                        (
+                            *fieldIter()
+                        );
+
+                    if (fieldsToAdd.found(fld.name()))
+                    {
+                        const DimensionedField<Type, volMesh>& fldToAdd =
+                            *fieldsToAdd[fld.name()];
+
+                        MapDimField<Type>(meshMap, fld, fldToAdd);
+                    }
+                    else
+                    {
+                        WarningIn("fvMeshAdder::MapDimFields(..)")
+                            << "Not mapping field " << fld.name()
+                            << " since not present on mesh to add"
+                            << endl;
+                    }
+                }
+            }
+
+        **src/dynamicMesh/fvMeshAdder/fvMeshAdder.C**
+
+        _line 104ish, add:_
+
+            fvMeshAdder::MapDimFields<scalar>(mapPtr, mesh0, mesh1);
+            fvMeshAdder::MapDimFields<vector>(mapPtr, mesh0, mesh1);
+            fvMeshAdder::MapDimFields<sphericalTensor>(mapPtr, mesh0, mesh1);
+            fvMeshAdder::MapDimFields<symmTensor>(mapPtr, mesh0, mesh1);
+            fvMeshAdder::MapDimFields<tensor>(mapPtr, mesh0, mesh1);
+            
+    4. Add in the actual distribution if the different types of
+         DimensionedFields in fvMeshDistribute.
+         
+        **src/dynamicMesh/fvMeshDistribute/fvMeshDistribute.C**
+                
+        _line 1735ish, add:_
+            
+            const wordList dimScalarFields
+            (
+                mesh_.names(DimensionedField<scalar, volMesh>::typeName)
+            );
+            checkEqualWordList("dimScalarFields", dimScalarFields);
+            
+            const wordList dimVectorFields
+            (
+                mesh_.names(DimensionedField<vector, volMesh>::typeName)
+            );
+            checkEqualWordList("dimVectorFields", dimVectorFields);
+            
+            const wordList dimSphericalTensorFields
+            (
+                mesh_.names(DimensionedField<sphericalTensor, volMesh>::typeName)
+            );
+            checkEqualWordList("dimSphericalTensorFields", dimSphericalTensorFields);
+            
+            const wordList dimSymmTensorFields
+            (
+                mesh_.names(DimensionedField<symmTensor, volMesh>::typeName)
+            );
+            checkEqualWordList("dimSymmTensorFields", dimSymmTensorFields);
+            
+            const wordList dimTensorFields
+            (
+                mesh_.names(DimensionedField<tensor, volMesh>::typeName)
+            );
+            checkEqualWordList("dimTensorFields", dimTensorFields);
+            
+            
+            
+        _line 1997ish (immediately after the sendFields<surfaceTensorField>, add:_
+            
+            sendFields<DimensionedField<scalar,volMesh> >
+            (
+                recvProc,
+                dimScalarFields,
+                subsetter,
+                str
+            );
+            sendFields<DimensionedField<vector,volMesh> >
+            (
+                recvProc,
+                dimVectorFields,
+                subsetter,
+                str
+            );
+            sendFields<DimensionedField<sphericalTensor,volMesh> >
+            (
+                recvProc,
+                dimSphericalTensorFields,
+                subsetter,
+                str
+            );
+            sendFields<DimensionedField<symmTensor,volMesh> >
+            (
+                recvProc,
+                dimSymmTensorFields,
+                subsetter,
+                str
+            );
+            sendFields<DimensionedField<tensor,volMesh> >
+            (
+                recvProc,
+                dimTensorFields,
+                subsetter,
+                str
+            );
+            
+        _line 2180ish (after the PtrList<surfaceTensorField> line), add:_
+
+            PtrList<DimensionedField<scalar,volMesh> > isf;
+            PtrList<DimensionedField<vector,volMesh> > ivf;
+            PtrList<DimensionedField<sphericalTensor,volMesh> > istf;
+            PtrList<DimensionedField<symmTensor,volMesh> > isytf;
+            PtrList<DimensionedField<tensor,volMesh> > itf;
+            
+        _line 2290ish (after the receiveFields<surfaceTensorField> call), add:_
+
+            receiveFields<DimensionedField<scalar,volMesh> >
+            (
+                sendProc,
+                dimScalarFields,
+                domainMesh,
+                isf,
+                fieldDicts.subDict(DimensionedField<scalar,volMesh>::typeName)
+            );
+            receiveFields<DimensionedField<vector,volMesh> >
+            (
+                sendProc,
+                dimVectorFields,
+                domainMesh,
+                ivf,
+                fieldDicts.subDict(DimensionedField<vector,volMesh>::typeName)
+            );
+            receiveFields<DimensionedField<sphericalTensor,volMesh> >
+            (
+                sendProc,
+                dimSphericalTensorFields,
+                domainMesh,
+                istf,
+                fieldDicts.subDict(DimensionedField<sphericalTensor,volMesh>::typeName)
+            );
+            receiveFields<DimensionedField<symmTensor,volMesh> >
+            (
+                sendProc,
+                dimSymmTensorFields,
+                domainMesh,
+                isytf,
+                fieldDicts.subDict(DimensionedField<symmTensor,volMesh>::typeName)
+            );
+            receiveFields<DimensionedField<tensor,volMesh> >
+            (
+                sendProc,
+                dimTensorFields,
+                domainMesh,
+                itf,
+                fieldDicts.subDict(DimensionedField<tensor,volMesh>::typeName)
+            );
+            
+            
   6.  [ __INFREQUENT CRASH__ ] The version of scotch shipped with OpenFOAM-2.1.x (Version 5.1.11)
       has a bug that will show up sometimes when you are balancing the mesh. The error will say
       something to the effect of `dgraphFoldComm: internal error (3)`. Sometimes restarting the run
@@ -152,28 +504,39 @@ edits to the case (in addition to the changes to the source code in the section 
       `rmdepall`. Recompile it with its `Allwmake`. Then, just to be sure, go to OpenFOAM-2.1.x/src
       and run `Allwmake`.
 
-  7.  [__METHOD ERROR__] In the current implementation of dynamicRefineFvMesh, on which
+  7.  [ __METHOD ERROR__ ] In the current implementation of dynamicRefineFvMesh, on which
       this is based, a refined cell can be coarsened if the minimum refinementField value
       in any of its child cells is less than the threshhold in the dictionary. This is
-      nonsense and leads to oscillatory refinement. Consider the following cell
+      nonsense and leads to oscillatory refinement. Consider the following cell, showing the
+      value of `refinementField` in each cell
       
          +------+------+
          |      |      |
-         |  0   |  0   |
+         |  0   | 9.9  |
          |      |      |
          +------+------+
          |      |      |
-         |  0   |  9   |
+         | 9.9  | 9.9  |
          |      |      |
          +------+------+
          
-     where refinement is triggered at a value of 10. This cell, rather than being left
+     where refinement is triggered at a value of 10 and unrefinement at a value of, say, 0.5. 
+     This cell, rather than being left
      alone, will be coarsened. It should use the maximum value rather than the minimum
      value. To change this, in `dynamicRefineFvMesh.H` on line 112 change `minCellField`
-     to `maxCellField`. In `dynamicRefineFvMesh.C`, make the following 4 changes:
+     to `maxCellField`. In `dynamicRefineFvMesh.C`, make the following 4 changes. Line 
+     numbers here may not match your line numbers exactly, so use some common sense.
+     Changes 1-3 will all be in the existing `minCellField` function and change 4 is the only
+     location in the file that referenced the `minCellField` function.
      
      1. Line 646: change `minCellField` to `maxCellField`
      2. Line 648: change `GREAT` to `-GREAT`
      3. Line 656: change `min` to `max`
      4. Line 1236: change `minCellField` to `maxCellField`
-     
+
+  8. [ __CRASH__ ] When using viscosity models other than Newtonian in multiphase systems, each
+     model creates a field named "nu" which conflict with each other when re-balancing the mesh.
+     To fix it, for example in `BirdCarreau.C`, change `"nu"` on line 79 to `"BirdCarreau::"+name`
+     so the field has a unique name. A similar modification can be made for the other viscosity
+     models if needed.
+

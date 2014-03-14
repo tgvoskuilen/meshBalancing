@@ -1,4 +1,27 @@
 {
+
+    if (mesh.changing())
+    {
+        forAll(U.boundaryField(), patchi)
+        {
+            if (U.boundaryField()[patchi].fixesValue())
+            {
+                U.boundaryField()[patchi].initEvaluate();
+            }
+        }
+
+        forAll(U.boundaryField(), patchi)
+        {
+            if (U.boundaryField()[patchi].fixesValue())
+            {
+                U.boundaryField()[patchi].evaluate();
+
+                phi.boundaryField()[patchi] =
+                    rho.boundaryField()[patchi] * (U.boundaryField()[patchi] & mesh.Sf().boundaryField()[patchi]);
+            }
+        }
+    }
+
     #include "continuityErrs.H"
 
     wordList pcorrTypes
@@ -30,7 +53,7 @@
         pcorrTypes
     );
 
-    dimensionedScalar rAUf("(1|A(U))", dimTime/rho.dimensions(), 1.0);
+    dimensionedScalar rAUf("(1|A(U))", dimTime, 1.0);
 
     adjustPhi(phi, U, pcorr);
 
@@ -40,7 +63,7 @@
     {
         fvScalarMatrix pcorrEqn
         (
-            fvm::laplacian(rAUf, pcorr) == fvc::div(phi)
+            fvm::laplacian(rAUf, pcorr) == fvc::div(phi) - divPhi
         );
 
         //pcorrEqn.setReference(pRefCell, pRefValue);
@@ -49,7 +72,6 @@
         if (pimple.finalNonOrthogonalIter())
         {
             phi -= pcorrEqn.flux();
-            fvc::makeRelative(phi, U);
         }
     }
 

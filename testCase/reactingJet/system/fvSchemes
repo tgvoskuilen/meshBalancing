@@ -65,6 +65,7 @@ fluxRequired
 {
     default         no;
     p;
+    pcorr;
 }
 
 

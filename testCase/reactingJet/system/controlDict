@@ -15,7 +15,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     reactingFoam;
+application     reactingDyMFoam;
 
 startFrom       startTime;
 
@@ -49,5 +49,9 @@ adjustTimeStep  yes;
 
 maxCo           0.4;
 
+libs
+(
+    "libdynamicFvMesh-dev.so"
+);
 
 // ************************************************************************* //

@@ -50,6 +50,7 @@ int main(int argc, char *argv[])
     #include "readTimeControls.H"
     
     pimpleControl pimple(mesh);
+    volScalarField divPhi(fvc::div(phi));
 
     #include "correctPhi.H"
     #include "compressibleCourantNo.H"
@@ -79,6 +80,7 @@ int main(int argc, char *argv[])
         scalar timeBeforeMeshUpdate = runTime.elapsedCpuTime();
 
         {
+            divPhi = fvc::div(phi);
             // Calculate the relative velocity used to map the relative flux phi
             /*volVectorField Urel("Urel", U);
 
