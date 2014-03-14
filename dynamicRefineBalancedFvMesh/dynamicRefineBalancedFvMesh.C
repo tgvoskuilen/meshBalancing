@@ -60,7 +60,6 @@ Foam::label Foam::dynamicRefineBalancedFvMesh::topParentID(label p)
 Foam::Pair<scalar> Foam::dynamicRefineBalancedFvMesh::readRefinementPoints()
 {
     dictionary refineDict
-}
     (
         IOdictionary
         (
