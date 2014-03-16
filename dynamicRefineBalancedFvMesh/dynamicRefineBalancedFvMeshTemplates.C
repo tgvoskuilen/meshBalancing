@@ -32,12 +32,12 @@ void Foam::dynamicRefineBalancedFvMesh::correctBoundaries()
 {
     typedef GeometricField<Type, fvPatchField, volMesh> GeoField;
 
-    HashTable<GeoField*>
+    HashTable<const GeoField*>
         flds(this->objectRegistry::lookupClass<GeoField>());
 
-    forAllIter(typename HashTable<GeoField*>, flds, iter)
+    forAllConstIter(typename HashTable<const GeoField*>, flds, iter)
     {
-        GeoField& fld = *iter();
+        GeoField& fld = const_cast<GeoField&>(*iter());
         
         //mimic "evaluate" but only for coupled patches (processor or cyclic)
         // and only for blocking or nonBlocking comms (no scheduled comms)
