@@ -140,10 +140,10 @@ models you will have to fix issue 7 too.
      Changes 1-3 will all be in the existing `minCellField` function and change 4 is the only
      location in the file that referenced the `minCellField` function.
      
-     1. Line 646: change `minCellField` to `maxCellField`
-     2. Line 648: change `GREAT` to `-GREAT`
-     3. Line 656: change `min` to `max`
-     4. Line 1236: change `minCellField` to `maxCellField`
+     1. Line 651: change `minCellField` to `maxCellField`
+     2. Line 653: change `GREAT` to `-GREAT`
+     3. Line 661: change `min` to `max`
+     4. Line 1342: change `minCellField` to `maxCellField`
      
   7. [ __CRASH__ ] When using viscosity models other than Newtonian in multiphase systems, each
      model creates a field named "nu" which conflict with each other when re-balancing the mesh.
